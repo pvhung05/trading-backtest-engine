@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Runtime market data
+backtest_system/data/raw/
+backtest_system/data/processed/
+
+# OS files
+.DS_Store
+Thumbs.db
