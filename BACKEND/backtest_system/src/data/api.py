@@ -15,7 +15,8 @@ def get_data(symbol: str,
              end_date: str,
              interval: str = "1d",
              base_path: Optional[str] = None,
-             return_meta: bool = False) -> "pd.DataFrame | Tuple[pd.DataFrame, dict]":
+             return_meta: bool = False,
+             auto_extend_to_today: bool = True) -> "pd.DataFrame | Tuple[pd.DataFrame, dict]":
     """Fetch data for `symbol` between `start_date` and `end_date` at `interval`.
 
     This is a thin wrapper around `MarketDataManager` and follows the project's
@@ -29,15 +30,16 @@ def get_data(symbol: str,
       interval: data interval (e.g. "1d", "1m").
       base_path: optional base storage path (overrides manager default).
       return_meta: if True, return `(df, metadata)` else return `df`.
+      auto_extend_to_today: if True, automatically fetch data up to today to fill gaps.
 
     Returns:
       `pd.DataFrame` or `(pd.DataFrame, dict)` when `return_meta` is True.
     """
-    manager_kwargs = {}
+    manager_kwargs = {"auto_extend_to_today": auto_extend_to_today}
     if base_path:
         manager_kwargs["base_path"] = str(base_path)
 
-    mgr = MarketDataManager(**manager_kwargs) if manager_kwargs else MarketDataManager()
+    mgr = MarketDataManager(**manager_kwargs)
     df, meta = mgr.get_data_with_metadata(symbol, start_date, end_date, interval=interval)
     if return_meta:
         return df, meta

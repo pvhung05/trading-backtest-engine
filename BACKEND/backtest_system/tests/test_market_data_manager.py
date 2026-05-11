@@ -25,11 +25,11 @@ def rm_tree(p: Path):
 
 
 def run_tests():
-    df, btc_meta = get_data("BTC-USD", "2025-01-01", "2026-05-07", "1h", return_meta=True)
-    print(btc_meta)
-    print("\nBTC sample head:\n", df.head())
-    print("\nBTC sample tail:\n", df.tail())
-    print("\nBTC rows:", len(df))
+    df, aapl_meta = get_data("AAPL", "2025-05-31", "2025-06-11", "1d", return_meta=True)
+    print(aapl_meta)
+    print("\nAAPL sample head:\n", df.head())
+    print("\nAAPL sample tail:\n", df.tail())
+    print("\nAAPL rows:", len(df))
 
 
 if __name__ == "__main__":

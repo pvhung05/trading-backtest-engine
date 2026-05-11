@@ -51,12 +51,14 @@ class MarketDataManager:
         base_path: str | Path | None = None,
         handle_missing: str = "forward_fill",
         api_source: str = "yfinance",
+        auto_extend_to_today: bool = True,
     ):
         self.base_path = self._default_base_path() if base_path is None else Path(base_path)
         self.storage = DataStorage(self.base_path)
         self.loader = DataLoader(base_dir=self.base_path)
         self.processor = DataProcessor(handle_missing=handle_missing)
         self.api_source = api_source
+        self.auto_extend_to_today = auto_extend_to_today
 
     def get_data(
         self,
@@ -97,6 +99,12 @@ class MarketDataManager:
         requested_end = pd.to_datetime(end_date)
         source = (api_source or self.api_source).strip().lower()
 
+        # If auto_extend_to_today is enabled, extend the end_date to today
+        # This ensures we fetch the latest available data and minimize future gaps
+        extended_end = requested_end
+        if self.auto_extend_to_today and requested_end < pd.Timestamp.today():
+            extended_end = pd.Timestamp.today()
+
         if requested_end < requested_start:
             raise ValueError("end_date must be greater than or equal to start_date")
 
@@ -106,10 +114,12 @@ class MarketDataManager:
         existing_processed = self._load_existing_processed(normalized_symbol, normalized_interval)
 
         if existing_processed.empty or force_refresh:
+            # When starting fresh, fetch to extended_end if auto_extend_to_today is enabled
+            fetch_end = extended_end if self.auto_extend_to_today else requested_end
             fetched_full = self._fetch_api_range(
                 symbol=normalized_symbol,
                 start=requested_start,
-                end=requested_end,
+                end=fetch_end,
                 interval=normalized_interval,
                 api_source=source,
             )
@@ -136,23 +146,48 @@ class MarketDataManager:
                 processed_path=str(processed_path) if processed_path.exists() else None,
             )
 
-        missing_ranges = self._detect_missing_ranges(existing_processed, requested_start, requested_end, normalized_interval)
+        missing_ranges = self._detect_missing_ranges(existing_processed, requested_start, extended_end if self.auto_extend_to_today else requested_end, normalized_interval)
         if not missing_ranges:
-            sliced = self._slice_requested_range(existing_processed, requested_start, requested_end)
-            return sliced, self._build_metadata(
-                data=sliced,
-                source="parquet",
-                updated=False,
-                symbol=normalized_symbol,
-                interval=normalized_interval,
-                requested_start=requested_start,
-                requested_end=requested_end,
-                coverage_start=self._coverage_start(existing_processed),
-                coverage_end=self._coverage_end(existing_processed),
-                missing_ranges=[],
-                raw_path=str(raw_path) if raw_path.exists() else None,
-                processed_path=str(processed_path),
-            )
+            # No missing ranges, but still check if we need to extend beyond requested_end for future requests
+            if self.auto_extend_to_today and extended_end > requested_end:
+                # Check if there's a gap between coverage_end and extended_end
+                coverage_end = self._coverage_end(existing_processed)
+                if coverage_end is not None and coverage_end < extended_end:
+                    # Schedule a fetch for the extension range
+                    ext_step = self._interval_step(normalized_interval)
+                    missing_ranges = [(coverage_end + ext_step, extended_end)]
+                else:
+                    sliced = self._slice_requested_range(existing_processed, requested_start, requested_end)
+                    return sliced, self._build_metadata(
+                        data=sliced,
+                        source="parquet",
+                        updated=False,
+                        symbol=normalized_symbol,
+                        interval=normalized_interval,
+                        requested_start=requested_start,
+                        requested_end=requested_end,
+                        coverage_start=self._coverage_start(existing_processed),
+                        coverage_end=self._coverage_end(existing_processed),
+                        missing_ranges=[],
+                        raw_path=str(raw_path) if raw_path.exists() else None,
+                        processed_path=str(processed_path),
+                    )
+            else:
+                sliced = self._slice_requested_range(existing_processed, requested_start, requested_end)
+                return sliced, self._build_metadata(
+                    data=sliced,
+                    source="parquet",
+                    updated=False,
+                    symbol=normalized_symbol,
+                    interval=normalized_interval,
+                    requested_start=requested_start,
+                    requested_end=requested_end,
+                    coverage_start=self._coverage_start(existing_processed),
+                    coverage_end=self._coverage_end(existing_processed),
+                    missing_ranges=[],
+                    raw_path=str(raw_path) if raw_path.exists() else None,
+                    processed_path=str(processed_path),
+                )
 
         fetched_parts: List[pd.DataFrame] = []
         fetched_ranges: List[Tuple[pd.Timestamp, pd.Timestamp]] = []
