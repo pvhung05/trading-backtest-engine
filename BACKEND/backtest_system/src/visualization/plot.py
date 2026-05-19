@@ -1,1 +1,0 @@
-# vẽ, không tính toán

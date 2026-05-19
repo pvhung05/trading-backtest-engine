@@ -1,1 +1,0 @@
-# tính sharpe ratio, volatility, max drawdown, v.v. dựa trên return, drawdown đã tính ở performance.py
