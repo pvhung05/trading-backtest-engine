@@ -57,11 +57,18 @@ public class MarketDataLoadRequest {
 
         try {
             Instant parsedStartTime = Instant.parse(requireValue(startTime, "startTime"));
-            Instant parsedEndTime = Instant.parse(requireValue(endTime, "endTime"));
+            Instant parsedEndTime = parseEndTimeOrNow(endTime);
             return new MarketDataRequest(normalizedSymbol, normalizedTimeframe, parsedStartTime, parsedEndTime);
         } catch (DateTimeParseException ex) {
             throw new IllegalArgumentException("startTime and endTime must be ISO-8601 instant format", ex);
         }
+    }
+
+    private Instant parseEndTimeOrNow(String rawEndTime) {
+        if (rawEndTime == null || rawEndTime.isBlank()) {
+            return Instant.now();
+        }
+        return Instant.parse(rawEndTime.trim());
     }
 
     private String requireValue(String value, String fieldName) {
