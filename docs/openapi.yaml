@@ -1,0 +1,162 @@
+openapi: 3.0.3
+info:
+  title: Backtest Trading - Market API
+  version: 1.0.0
+  description: API để tải dữ liệu thị trường và kiểm tra cache (market module)
+servers:
+  - url: http://localhost:8081
+paths:
+  /api/market/load:
+    get:
+      summary: Tải dữ liệu bar cho symbol/timeframe trong khoảng thời gian
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Mã cặp (ví dụ BTCUSDT)
+        - name: timeframe
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Timeframe (ví dụ 5m, 1h)
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Thời điểm bắt đầu (ISO-8601)
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Thời điểm kết thúc (ISO-8601)
+      responses:
+        '200':
+          description: Danh sách bars trả về
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketDataResponse'
+        '400':
+          description: Bad request (validation lỗi)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Lỗi provider / upstream
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/market/cache:
+    get:
+      summary: Xem tổng quan cache hiện có
+      responses:
+        '200':
+          description: Thông tin cache
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketCacheResponse'
+    delete:
+      summary: Xóa toàn bộ cache
+      responses:
+        '204':
+          description: Cache đã được xóa thành công (No Content)
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    MarketBarResponse:
+      type: object
+      properties:
+        endTime:
+          type: string
+          format: date-time
+        open:
+          type: number
+          format: double
+        high:
+          type: number
+          format: double
+        low:
+          type: number
+          format: double
+        close:
+          type: number
+          format: double
+        volume:
+          type: number
+          format: double
+      required: [endTime, open, high, low, close, volume]
+
+    MarketDataResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        barCount:
+          type: integer
+        bars:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketBarResponse'
+      required: [symbol, timeframe, startTime, endTime, barCount, bars]
+
+    MarketCacheEntryResponse:
+      type: object
+      properties:
+        cacheKey:
+          type: string
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        barCount:
+          type: integer
+      required: [cacheKey, symbol, timeframe, startTime, endTime, barCount]
+
+    MarketCacheResponse:
+      type: object
+      properties:
+        cacheSize:
+          type: integer
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/MarketCacheEntryResponse'
+      required: [cacheSize, entries]
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required: [message]
