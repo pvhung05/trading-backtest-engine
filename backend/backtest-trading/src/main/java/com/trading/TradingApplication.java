@@ -3,7 +3,11 @@ package com.trading;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(excludeName = {
+		"org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration",
+		"org.springframework.boot.hibernate.autoconfigure.HibernateJpaAutoConfiguration",
+		"org.springframework.boot.devtools.autoconfigure.DevToolsDataSourceAutoConfiguration"
+})
 public class TradingApplication {
 
 	public static void main(String[] args) {
