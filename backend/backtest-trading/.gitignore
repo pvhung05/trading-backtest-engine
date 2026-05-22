@@ -52,6 +52,7 @@ Thumbs.db
 .env
 application-local.yml
 application-secret.yml
+src/main/resources/application-local.properties
 
 ### Market Data ###
 data/

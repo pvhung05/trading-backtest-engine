@@ -1,11 +1,94 @@
 openapi: 3.0.3
 info:
-  title: Backtest Trading - Market API
+  title: Backtest Trading API
   version: 1.0.0
-  description: API để tải dữ liệu thị trường và kiểm tra cache (market module)
+  description: API cho auth JWT và market module của hệ thống backtest trading.
 servers:
   - url: http://localhost:8081
+security:
+  - bearerAuth: []
 paths:
+  /api/auth/register:
+    post:
+      summary: Đăng ký user mới và nhận JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              username: hungpham
+              email: hung@example.com
+              password: strongpassword123
+      responses:
+        '201':
+          description: Tạo user thành công và trả token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validate lỗi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Username hoặc email đã tồn tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/login:
+    post:
+      summary: Đăng nhập và nhận JWT
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: hungpham
+              password: strongpassword123
+      responses:
+        '200':
+          description: Đăng nhập thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validate lỗi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Sai thông tin đăng nhập
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/me:
+    get:
+      summary: Lấy thông tin user hiện tại từ JWT
+      responses:
+        '200':
+          description: Thông tin user hiện tại
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Thiếu hoặc sai JWT
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/market/load:
     get:
       summary: Tải dữ liệu bar cho symbol/timeframe trong khoảng thời gian
@@ -55,7 +138,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
   /api/market/cache:
     get:
       summary: Xem tổng quan cache hiện có
@@ -77,9 +159,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
+    RegisterRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 72
+      required: [username, email, password]
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+      required: [username, password]
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [USER, ADMIN]
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, username, email, role, enabled, createdAt]
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        tokenType:
+          type: string
+          example: Bearer
+        user:
+          $ref: '#/components/schemas/UserResponse'
+      required: [token, tokenType, user]
     MarketBarResponse:
       type: object
       properties:
@@ -102,7 +242,6 @@ components:
           type: number
           format: double
       required: [endTime, open, high, low, close, volume]
-
     MarketDataResponse:
       type: object
       properties:
@@ -123,7 +262,6 @@ components:
           items:
             $ref: '#/components/schemas/MarketBarResponse'
       required: [symbol, timeframe, startTime, endTime, barCount, bars]
-
     MarketCacheEntryResponse:
       type: object
       properties:
@@ -142,7 +280,6 @@ components:
         barCount:
           type: integer
       required: [cacheKey, symbol, timeframe, startTime, endTime, barCount]
-
     MarketCacheResponse:
       type: object
       properties:
@@ -153,7 +290,6 @@ components:
           items:
             $ref: '#/components/schemas/MarketCacheEntryResponse'
       required: [cacheSize, entries]
-
     ErrorResponse:
       type: object
       properties:
