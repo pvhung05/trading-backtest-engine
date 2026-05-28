@@ -63,3 +63,5 @@ cache/
 reports/
 exports/
 snapshots/
+
+src\main\java\com\trading\ta4j

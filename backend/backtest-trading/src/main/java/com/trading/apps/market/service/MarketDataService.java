@@ -20,6 +20,7 @@ import com.trading.apps.market.model.MarketDataRequest;
 import com.trading.apps.market.model.MarketDataCacheSnapshot;
 import com.trading.apps.market.provider.MarketDataProvider;
 import com.trading.apps.market.slicer.SeriesSlicer;
+import com.trading.apps.market.util.TimeframeUtil;
 
 /**
  * Service layer for market data retrieval.
@@ -97,6 +98,31 @@ public class MarketDataService {
 
         logger.info("Returning sliced BarSeries with {} bars for request: {}", slicedSeries.getBarCount(), request);
         return slicedSeries;
+    }
+
+    public BarSeries load(MarketDataRequest request, int warmupBars) {
+        Objects.requireNonNull(request, "request cannot be null");
+
+        if (warmupBars <= 0) {
+            return load(request);
+        }
+
+        Instant warmupStartTime = request.getStartTime().minus(TimeframeUtil.toDuration(request.getTimeframe()).multipliedBy(warmupBars));
+        MarketDataRequest expandedRequest = new MarketDataRequest(
+                request.getSymbol(),
+                request.getTimeframe(),
+                warmupStartTime,
+                request.getEndTime()
+        );
+
+        logger.info(
+                "Loading market data with warmup: {} extra bars for request {} (expanded start: {})",
+                warmupBars,
+                request,
+                warmupStartTime
+        );
+
+        return load(expandedRequest);
     }
 
     private BarSeries extendCachedSeriesIfNeeded(String cacheKey, BarSeries cachedSeries, MarketDataRequest request) {
