@@ -1,5 +1,6 @@
 package com.trading.apps.execution.service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -51,11 +52,16 @@ public class DefaultExecutionService implements ExecutionService {
 	 */
 	@Override
 	public List<ExecutedTrade> execute(TradingRecord tradingRecord, BarSeries series, ExecutionConfig config, double capital) {
+		return execute(tradingRecord, series, config, capital, null);
+	}
+
+	@Override
+	public List<ExecutedTrade> execute(TradingRecord tradingRecord, BarSeries series, ExecutionConfig config, double capital, Instant startTime) {
 		Objects.requireNonNull(tradingRecord, "tradingRecord cannot be null");
 		Objects.requireNonNull(series, "series cannot be null");
 		Objects.requireNonNull(config, "config cannot be null");
 
-		List<TradeExecution> tradeExecutions = tradingRecordMapper.toTradeExecutions(tradingRecord, series);
+		List<TradeExecution> tradeExecutions = tradingRecordMapper.toTradeExecutions(tradingRecord, series, startTime);
 		List<ExecutedTrade> executedTrades = new ArrayList<>(tradeExecutions.size());
 
 		for (TradeExecution tradeExecution : tradeExecutions) {

@@ -3,6 +3,7 @@ package com.trading.apps.backtest.mapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.time.Instant;
 
 import org.springframework.stereotype.Component;
 import org.ta4j.core.Bar;
@@ -27,13 +28,26 @@ public class TradingRecordMapper {
      * @return a backtest result with all completed trades
      */
     public BacktestResult toResult(TradingRecord record, BarSeries series) {
+        return toResult(record, series, null);
+    }
+
+    /**
+     * Maps a trading record and its originating series to a backtest result, excluding trades
+     * whose entry bar ends before the provided start time.
+     *
+     * @param record the TA4J trading record
+     * @param series the bar series used for the backtest
+     * @param startTime the first bar time that should be included in the result, or null to keep all trades
+     * @return a backtest result with all completed trades
+     */
+    public BacktestResult toResult(TradingRecord record, BarSeries series, Instant startTime) {
         Objects.requireNonNull(record, "record cannot be null");
         Objects.requireNonNull(series, "series cannot be null");
 
         List<Trade> trades = new ArrayList<>();
 
         for (Position position : record.getPositions()) {
-            Trade trade = toTrade(position, series);
+            Trade trade = toTrade(position, series, startTime);
             if (trade != null) {
                 trades.add(trade);
             }
@@ -44,7 +58,7 @@ public class TradingRecordMapper {
                 .build();
     }
 
-    private Trade toTrade(Position position, BarSeries series) {
+    private Trade toTrade(Position position, BarSeries series, Instant startTime) {
         if (position == null || !position.isClosed()) {
             return null;
         }
@@ -62,6 +76,10 @@ public class TradingRecordMapper {
 
         Bar entryBar = series.getBar(entryIndex);
         Bar exitBar = series.getBar(exitIndex);
+
+        if (startTime != null && entryBar.getEndTime().isBefore(startTime)) {
+            return null;
+        }
 
         double entryPrice = entryBar.getClosePrice().doubleValue();
         double exitPrice = exitBar.getClosePrice().doubleValue();

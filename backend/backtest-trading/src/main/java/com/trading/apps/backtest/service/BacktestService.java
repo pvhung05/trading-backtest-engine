@@ -55,6 +55,6 @@ public class BacktestService {
         Strategy strategy = factory.build(series, command.getStrategyParameters());
         TradingRecord tradingRecord = backtestEngine.run(series, strategy);
 
-        return tradingRecordMapper.toResult(tradingRecord, series);
+        return tradingRecordMapper.toResult(tradingRecord, series, marketDataRequest.getStartTime());
     }
 }

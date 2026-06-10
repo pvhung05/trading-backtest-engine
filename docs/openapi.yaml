@@ -159,6 +159,50 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/backtest/trading-records:
+    post:
+      summary: Chạy backtest và trả về chuỗi trading record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestTradingRecordRequest'
+      responses:
+        '200':
+          description: Trading record của backtest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestTradingRecordResponse'
+        '400':
+          description: Validate lỗi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/execution/executed-trades:
+    post:
+      summary: Thực thi mô phỏng và trả về danh sách executed trades
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionSimulationRequest'
+      responses:
+        '200':
+          description: Danh sách executed trades
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionSimulationResponse'
+        '400':
+          description: Validate lỗi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -296,3 +340,181 @@ components:
         message:
           type: string
       required: [message]
+    BacktestTradingRecordRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+        shortPeriod:
+          type: integer
+        longPeriod:
+          type: integer
+        signalPeriod:
+          type: integer
+        period:
+          type: integer
+        overbought:
+          type: number
+          format: double
+        oversold:
+          type: number
+          format: double
+      required: [symbol, timeframe, startTime, strategyType]
+    BacktestTradeResponse:
+      type: object
+      properties:
+        entryTime:
+          type: string
+          format: date-time
+        entryPrice:
+          type: number
+          format: double
+        exitTime:
+          type: string
+          format: date-time
+        exitPrice:
+          type: number
+          format: double
+        profitPercent:
+          type: number
+          format: double
+      required: [entryTime, entryPrice, exitTime, exitPrice, profitPercent]
+    BacktestTradingRecordResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+        tradeCount:
+          type: integer
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/BacktestTradeResponse'
+      required: [symbol, timeframe, startTime, strategyType, tradeCount, trades]
+    ExecutionSimulationRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+        shortPeriod:
+          type: integer
+        longPeriod:
+          type: integer
+        signalPeriod:
+          type: integer
+        period:
+          type: integer
+        overbought:
+          type: number
+          format: double
+        oversold:
+          type: number
+          format: double
+        commissionRate:
+          type: number
+          format: double
+        slippageRate:
+          type: number
+          format: double
+        positionSizePercent:
+          type: number
+          format: double
+        capital:
+          type: number
+          format: double
+      required: [symbol, timeframe, startTime, strategyType, positionSizePercent, capital]
+    ExecutedTradeResponse:
+      type: object
+      properties:
+        entryTime:
+          type: string
+          format: date-time
+        exitTime:
+          type: string
+          format: date-time
+        entryPrice:
+          type: number
+          format: double
+        exitPrice:
+          type: number
+          format: double
+        quantity:
+          type: number
+          format: double
+        grossProfit:
+          type: number
+          format: double
+        commission:
+          type: number
+          format: double
+        slippageCost:
+          type: number
+          format: double
+        netProfit:
+          type: number
+          format: double
+      required: [entryTime, exitTime, entryPrice, exitPrice, quantity]
+    ExecutionSimulationResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+        capital:
+          type: number
+          format: double
+        commissionRate:
+          type: number
+          format: double
+        slippageRate:
+          type: number
+          format: double
+        positionSizePercent:
+          type: number
+          format: double
+        tradeCount:
+          type: integer
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutedTradeResponse'
+      required: [symbol, timeframe, startTime, strategyType, capital, tradeCount, trades]
