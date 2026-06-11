@@ -5,6 +5,8 @@ package com.trading.apps.api.response.portfolio;
  */
 public record EquityCurvePointResponse(
         String timestamp,
-        double equity
+        double equity,
+        boolean openPosition,
+        double openPositionPnl
 ) {
 }

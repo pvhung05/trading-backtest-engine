@@ -56,7 +56,9 @@ public class PortfolioSimulationResponseMapper {
             for (EquityPoint ep : result.getEquityCurve()) {
                 points.add(new EquityCurvePointResponse(
                         ep.getTimestamp() != null ? ep.getTimestamp().toString() : null,
-                        ep.getEquity()));
+                        ep.getEquity(),
+                        ep.isOpenPosition(),
+                        ep.getOpenPositionPnl()));
             }
         }
         return new EquityCurveResponse(points);
