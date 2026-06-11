@@ -8,16 +8,23 @@ import org.ta4j.core.BarSeries;
 import org.ta4j.core.Strategy;
 import org.ta4j.core.TradingRecord;
 
+import com.trading.apps.api.mapper.portfolio.PortfolioSimulationResponseMapper;
+import com.trading.apps.api.request.portfolio.PortfolioSimulationRequest;
+import com.trading.apps.api.response.portfolio.PortfolioSimulationResponse;
 import com.trading.apps.backtest.service.BacktestEngine;
-import com.trading.apps.execution.model.ExecutionSimulationCommand;
 import com.trading.apps.execution.model.ExecutedTrade;
+import com.trading.apps.execution.model.ExecutionSimulationCommand;
 import com.trading.apps.market.model.MarketDataRequest;
 import com.trading.apps.market.service.MarketDataService;
+import com.trading.apps.portfolio.model.PortfolioConfig;
+import com.trading.apps.portfolio.model.PortfolioResult;
+import com.trading.apps.portfolio.service.PortfolioService;
 import com.trading.apps.strategy.factory.TradingStrategyFactory;
 import com.trading.apps.strategy.service.StrategyFactoryRegistry;
 
 /**
- * Orchestrates market loading, strategy creation, backtest execution, and execution simulation.
+ * Orchestrates market loading, strategy creation, backtest execution,
+ * and execution simulation with candle-aware portfolio calculation.
  */
 @Service
 public class ExecutionSimulationService {
@@ -26,21 +33,32 @@ public class ExecutionSimulationService {
     private final StrategyFactoryRegistry strategyFactoryRegistry;
     private final BacktestEngine backtestEngine;
     private final ExecutionService executionService;
+    private final PortfolioService portfolioService;
+    private final PortfolioSimulationResponseMapper responseMapper;
 
-    public ExecutionSimulationService(MarketDataService marketDataService,
+    public ExecutionSimulationService(
+            MarketDataService marketDataService,
             StrategyFactoryRegistry strategyFactoryRegistry,
             BacktestEngine backtestEngine,
-            ExecutionService executionService) {
+            ExecutionService executionService,
+            PortfolioService portfolioService,
+            PortfolioSimulationResponseMapper responseMapper) {
         this.marketDataService = marketDataService;
         this.strategyFactoryRegistry = strategyFactoryRegistry;
         this.backtestEngine = backtestEngine;
         this.executionService = executionService;
+        this.portfolioService = portfolioService;
+        this.responseMapper = responseMapper;
     }
 
+    /**
+     * Executes the full simulation pipeline and returns executed trades.
+     */
     public List<ExecutedTrade> execute(ExecutionSimulationCommand command) {
         Objects.requireNonNull(command, "command cannot be null");
 
-        MarketDataRequest marketDataRequest = Objects.requireNonNull(command.getMarketDataRequest(), "marketDataRequest cannot be null");
+        MarketDataRequest marketDataRequest = Objects.requireNonNull(
+                command.getMarketDataRequest(), "marketDataRequest cannot be null");
         Objects.requireNonNull(command.getStrategyType(), "strategyType cannot be null");
         Objects.requireNonNull(command.getStrategyParameters(), "strategyParameters cannot be null");
         Objects.requireNonNull(command.getExecutionConfig(), "executionConfig cannot be null");
@@ -57,10 +75,44 @@ public class ExecutionSimulationService {
         TradingRecord tradingRecord = backtestEngine.run(series, strategy);
 
         return executionService.execute(
-            tradingRecord,
-            series,
-            command.getExecutionConfig(),
-            command.getCapital(),
-            marketDataRequest.getStartTime());
+                tradingRecord,
+                series,
+                command.getExecutionConfig(),
+                command.getCapital(),
+                marketDataRequest.getStartTime());
+    }
+
+    /**
+     * Executes the full simulation pipeline and returns the complete portfolio simulation response.
+     */
+    public PortfolioSimulationResponse simulate(PortfolioSimulationRequest request) {
+        Objects.requireNonNull(request, "request cannot be null");
+
+        ExecutionSimulationCommand command = request.toExecutionCommand();
+        MarketDataRequest marketDataRequest = command.getMarketDataRequest();
+
+        TradingStrategyFactory factory = strategyFactoryRegistry.getFactory(command.getStrategyType());
+        int warmupBars = factory.getRequiredWarmupBars(command.getStrategyParameters());
+
+        BarSeries series = marketDataService.load(marketDataRequest, warmupBars);
+        if (series == null || series.getBarCount() == 0) {
+            throw new IllegalArgumentException("No market data returned for portfolio simulation");
+        }
+
+        Strategy strategy = factory.build(series, command.getStrategyParameters());
+        TradingRecord tradingRecord = backtestEngine.run(series, strategy);
+
+        List<ExecutedTrade> executedTrades = executionService.execute(
+                tradingRecord,
+                series,
+                command.getExecutionConfig(),
+                command.getCapital(),
+                marketDataRequest.getStartTime());
+
+        PortfolioConfig portfolioConfig = request.toPortfolioConfig();
+        PortfolioResult portfolioResult = portfolioService.calculate(
+                executedTrades, series, portfolioConfig);
+
+        return responseMapper.toResponse(command, portfolioResult);
     }
 }
