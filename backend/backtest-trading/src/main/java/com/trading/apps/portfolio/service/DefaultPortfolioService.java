@@ -2,10 +2,14 @@ package com.trading.apps.portfolio.service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 import org.springframework.stereotype.Service;
+import org.ta4j.core.Bar;
+import org.ta4j.core.BarSeries;
 
 import com.trading.apps.execution.model.ExecutedTrade;
 import com.trading.apps.portfolio.model.EquityPoint;
@@ -17,6 +21,7 @@ import com.trading.apps.portfolio.validator.PortfolioValidator;
 
 /**
  * Default implementation of {@link PortfolioService}.
+ * Calculates portfolio equity at every candle bar using mark-to-market.
  */
 @Service
 public class DefaultPortfolioService implements PortfolioService {
@@ -27,53 +32,103 @@ public class DefaultPortfolioService implements PortfolioService {
         this.validator = Objects.requireNonNull(validator, "validator cannot be null");
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    public PortfolioResult calculate(List<ExecutedTrade> trades, PortfolioConfig config) {
-        validator.validate(trades, config);
+    public PortfolioResult calculate(List<ExecutedTrade> trades, BarSeries series, PortfolioConfig config) {
+        validator.validate(trades, series, config);
 
         if (trades == null) {
             trades = Collections.emptyList();
         }
 
+        int barCount = series.getBarCount();
+
+        // Index trades by their entry/exit bar index for O(1) lookup
+        Map<Integer, ExecutedTrade> tradesByEntryIndex = new HashMap<>();
+        Map<Integer, ExecutedTrade> tradesByExitIndex = new HashMap<>();
+
+        for (ExecutedTrade trade : trades) {
+            int entryIdx = findBarIndex(series, trade.getEntryTime());
+            int exitIdx = findBarIndex(series, trade.getExitTime());
+
+            if (entryIdx >= 0 && entryIdx < barCount) {
+                tradesByEntryIndex.put(entryIdx, trade);
+            }
+            if (exitIdx >= 0 && exitIdx < barCount) {
+                tradesByExitIndex.put(exitIdx, trade);
+            }
+        }
+
         double cash = config.getInitialCapital();
         double balance = config.getInitialCapital();
+        double positionQty = 0.0;
+        double entryPrice = 0.0;
+        int tradeNumber = 0;
 
         List<PortfolioSnapshot> snapshots = new ArrayList<>();
         List<EquityPoint> equityCurve = new ArrayList<>();
 
-        // initial equity point
-        equityCurve.add(EquityPoint.builder()
-                .timestamp(null)
-                .equity(config.getInitialCapital())
-                .build());
+        for (int i = 0; i < barCount; i++) {
+            Bar bar = series.getBar(i);
+            double close = bar.getClosePrice().doubleValue();
+            var ts = bar.getEndTime();
 
-        int tradeIndex = 0;
-        for (ExecutedTrade trade : trades) {
-            tradeIndex += 1;
+            // Mark-to-market: update balance based on open position
+            if (positionQty > 0) {
+                double unrealizedPnl = (close - entryPrice) * positionQty;
+                balance = cash + unrealizedPnl;
+            } else {
+                balance = cash;
+            }
 
-            double netProfit = trade == null ? 0.0d : trade.getNetProfit();
-            cash += netProfit;
-            balance = cash;
+            boolean isOpen = positionQty > 0;
+            double openPnl = isOpen ? (close - entryPrice) * positionQty : 0.0;
 
-            PortfolioSnapshot snapshot = PortfolioSnapshot.builder()
-                    .timestamp(trade == null ? null : trade.getExitTime())
-                    .balance(balance)
-                    .cash(cash)
-                    .tradeProfit(netProfit)
-                    .tradeNumber(tradeIndex)
-                    .build();
-
-            snapshots.add(snapshot);
-
-            EquityPoint point = EquityPoint.builder()
-                    .timestamp(trade == null ? null : trade.getExitTime())
+            equityCurve.add(EquityPoint.builder()
+                    .timestamp(ts)
                     .equity(balance)
-                    .build();
+                    .openPosition(isOpen)
+                    .openPositionPnl(openPnl)
+                    .build());
+            ExecutedTrade exitTrade = tradesByExitIndex.get(i);
+            if (exitTrade != null) {
+                tradeNumber++;
+                double netProfit = exitTrade.getNetProfit();
+                cash += netProfit;
+                positionQty = 0.0;
+                entryPrice = 0.0;
+                balance = cash;
 
-            equityCurve.add(point);
+                snapshots.add(PortfolioSnapshot.builder()
+                        .timestamp(ts)
+                        .balance(balance)
+                        .cash(cash)
+                        .tradeProfit(netProfit)
+                        .tradeNumber(tradeNumber)
+                        .build());
+            }
+
+            // Open new position at this candle
+            ExecutedTrade entryTrade = tradesByEntryIndex.get(i);
+            if (entryTrade != null && positionQty == 0) {
+                positionQty = entryTrade.getQuantity();
+                entryPrice = entryTrade.getEntryPrice();
+            }
+        }
+
+        // If still holding a position at the end, close it at final close price
+        if (positionQty > 0 && barCount > 0) {
+            double finalClose = series.getBar(barCount - 1).getClosePrice().doubleValue();
+            double unrealizedPnl = (finalClose - entryPrice) * positionQty;
+            cash += unrealizedPnl;
+            balance = cash;
+            positionQty = 0.0;
+
+            equityCurve.add(EquityPoint.builder()
+                    .timestamp(series.getBar(barCount - 1).getEndTime())
+                    .equity(balance)
+                    .openPosition(false)
+                    .openPositionPnl(0.0)
+                    .build());
         }
 
         Portfolio portfolio = Portfolio.builder()
@@ -87,5 +142,22 @@ public class DefaultPortfolioService implements PortfolioService {
                 .snapshots(snapshots)
                 .equityCurve(equityCurve)
                 .build();
+    }
+
+    /**
+     * Finds the bar index whose end time is on or immediately after the given instant.
+     */
+    private int findBarIndex(BarSeries series, java.time.Instant instant) {
+        if (instant == null || series.getBarCount() == 0) {
+            return -1;
+        }
+        int barCount = series.getBarCount();
+        for (int i = 0; i < barCount; i++) {
+            var barEndTime = series.getBar(i).getEndTime();
+            if (barEndTime.equals(instant) || barEndTime.isAfter(instant)) {
+                return i;
+            }
+        }
+        return barCount - 1;
     }
 }
