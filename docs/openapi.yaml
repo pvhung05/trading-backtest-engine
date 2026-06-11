@@ -203,6 +203,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/portfolio/simulate:
+    post:
+      summary: Chạy mô phỏng portfolio hoàn chỉnh với equity curve theo từng candle
+      description: |
+        Pipeline đầy đủ:
+        1. Tải dữ liệu thị trường và chạy backtest với chiến lược được chỉ định
+        2. Mô phỏng execution với commission, slippage và kích thước vị thế
+        3. Tính equity curve mark-to-market tại MỖI candle bar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioSimulationRequest'
+            example:
+              symbol: BTCUSDT
+              timeframe: 1h
+              startTime: "2024-01-01T00:00:00Z"
+              endTime: "2024-06-01T00:00:00Z"
+              strategyType: SMA_CROSS
+              shortPeriod: 10
+              longPeriod: 30
+              commissionRate: 0.001
+              slippageRate: 0.0005
+              positionSizePercent: 10.0
+              capital: 10000.0
+      responses:
+        '200':
+          description: Kết quả mô phỏng portfolio đầy đủ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioSimulationResponse'
+        '400':
+          description: Validate lỗi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '502':
+          description: Lỗi provider upstream (market data)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -518,3 +563,139 @@ components:
           items:
             $ref: '#/components/schemas/ExecutedTradeResponse'
       required: [symbol, timeframe, startTime, strategyType, capital, tradeCount, trades]
+    PortfolioSimulationRequest:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+          enum: [SMA_CROSS, RSI, MACD]
+        shortPeriod:
+          type: integer
+        longPeriod:
+          type: integer
+        signalPeriod:
+          type: integer
+        period:
+          type: integer
+        overbought:
+          type: number
+          format: double
+        oversold:
+          type: number
+          format: double
+        commissionRate:
+          type: number
+          format: double
+        slippageRate:
+          type: number
+          format: double
+        positionSizePercent:
+          type: number
+          format: double
+        capital:
+          type: number
+          format: double
+      required: [symbol, timeframe, startTime, strategyType, positionSizePercent, capital]
+    EquityCurvePointResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        equity:
+          type: number
+          format: double
+        openPosition:
+          type: boolean
+        openPositionPnl:
+          type: number
+          format: double
+      required: [timestamp, equity]
+    EquityCurveResponse:
+      type: object
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquityCurvePointResponse'
+      required: [points]
+    PortfolioStatsResponse:
+      type: object
+      properties:
+        initialCapital:
+          type: number
+          format: double
+        finalEquity:
+          type: number
+          format: double
+        totalReturn:
+          type: number
+          format: double
+        totalReturnPercent:
+          type: number
+          format: double
+        tradeCount:
+          type: integer
+      required: [initialCapital, finalEquity, totalReturn, totalReturnPercent, tradeCount]
+    CandleSnapshotResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        balance:
+          type: number
+          format: double
+        cash:
+          type: number
+          format: double
+        tradeProfit:
+          type: number
+          format: double
+        tradeNumber:
+          type: integer
+      required: [timestamp, balance, cash, tradeProfit, tradeNumber]
+    PortfolioSimulationResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+        capital:
+          type: number
+          format: double
+        commissionRate:
+          type: number
+          format: double
+        slippageRate:
+          type: number
+          format: double
+        positionSizePercent:
+          type: number
+          format: double
+        tradeCount:
+          type: integer
+        equityCurve:
+          $ref: '#/components/schemas/EquityCurveResponse'
+        stats:
+          $ref: '#/components/schemas/PortfolioStatsResponse'
+      required: [symbol, timeframe, startTime, strategyType, capital, tradeCount, equityCurve, stats]
