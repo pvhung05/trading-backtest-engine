@@ -35,7 +35,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/market/**").permitAll()
                         .requestMatchers("/api/portfolio/**").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .anyRequest().authenticated())
+                        .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
