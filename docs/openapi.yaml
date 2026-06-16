@@ -248,6 +248,59 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/metrics/calculate:
+    post:
+      summary: Tính toán toàn bộ performance metrics từ executed trades và equity curve
+      description: |
+        Nhận danh sách executed trades và equity curve để tính:
+        - Trading metrics: win rate, profit factor, expectancy, ...
+        - Portfolio metrics: max drawdown, Sharpe, Sortino, Calmar, CAGR, ...
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetricsSimulationRequest'
+            example:
+              trades:
+                - entryTime: "2025-01-01T00:00:00Z"
+                  exitTime: "2025-01-02T00:00:00Z"
+                  entryPrice: 100.0
+                  exitPrice: 110.0
+                  quantity: 1.0
+                  grossProfit: 10.0
+                  commission: 0.1
+                  slippageCost: 0.05
+                  netProfit: 9.85
+              equityCurve:
+                points:
+                  - timestamp: "2025-01-01T00:00:00Z"
+                    equity: 10000.0
+                    openPosition: false
+                    openPositionPnl: 0.0
+                  - timestamp: "2025-01-02T00:00:00Z"
+                    equity: 10009.85
+                    openPosition: true
+                    openPositionPnl: 9.85
+              stats:
+                initialCapital: 10000.0
+                finalEquity: 10009.85
+                totalReturn: 9.85
+                totalReturnPercent: 0.0985
+                tradeCount: 1
+      responses:
+        '200':
+          description: Kết quả metrics đầy đủ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSimulationResponse'
+        '400':
+          description: Validate lỗi hoặc dữ liệu không hợp lệ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -699,3 +752,80 @@ components:
         stats:
           $ref: '#/components/schemas/PortfolioStatsResponse'
       required: [symbol, timeframe, startTime, strategyType, capital, tradeCount, equityCurve, stats]
+    MetricsSimulationRequest:
+      type: object
+      properties:
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutedTradeResponse'
+        equityCurve:
+          $ref: '#/components/schemas/EquityCurveResponse'
+        stats:
+          $ref: '#/components/schemas/PortfolioStatsResponse'
+      required: [trades, equityCurve, stats]
+    MetricsSimulationResponse:
+      type: object
+      properties:
+        initialCapital:
+          type: number
+          format: double
+        finalBalance:
+          type: number
+          format: double
+        totalReturnPercent:
+          type: number
+          format: double
+        totalTrades:
+          type: integer
+        winningTrades:
+          type: integer
+        losingTrades:
+          type: integer
+        winRate:
+          type: number
+          format: double
+        profitFactor:
+          type: number
+          format: double
+        averageWin:
+          type: number
+          format: double
+        averageLoss:
+          type: number
+          format: double
+        bestTrade:
+          type: number
+          format: double
+        worstTrade:
+          type: number
+          format: double
+        maxConsecutiveWins:
+          type: integer
+        maxConsecutiveLosses:
+          type: integer
+        expectancy:
+          type: number
+          format: double
+        rewardRiskRatio:
+          type: number
+          format: double
+        maxDrawdown:
+          type: number
+          format: double
+        recoveryFactor:
+          type: number
+          format: double
+        sharpeRatio:
+          type: number
+          format: double
+        sortinoRatio:
+          type: number
+          format: double
+        calmarRatio:
+          type: number
+          format: double
+        cagr:
+          type: number
+          format: double
+      required: [initialCapital, finalBalance, totalReturnPercent, totalTrades, winningTrades, losingTrades, winRate, profitFactor, averageWin, averageLoss, bestTrade, worstTrade, maxConsecutiveWins, maxConsecutiveLosses, expectancy, rewardRiskRatio, maxDrawdown, recoveryFactor, sharpeRatio, sortinoRatio, calmarRatio, cagr]

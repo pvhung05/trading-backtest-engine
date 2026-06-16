@@ -1,0 +1,35 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+        "type": "java",
+        "name": "TradingApplication",
+        "request": "launch",
+        "mainClass": "com.trading.TradingApplication",
+        "projectName": "backtest-trading"
+    },
+    {
+        "type": "java",
+        "name": "TradingApplication",
+        "request": "launch",
+        "mainClass": "com.trading.TradingApplication",
+        "projectName": "demo"
+    },
+    {
+        "type": "java",
+        "name": "Ta4jManualDemo",
+        "request": "launch",
+        "mainClass": "com.trading.ta4j.Ta4jManualDemo",
+        "projectName": "demo"
+    },
+    {
+        "type": "java",
+        "name": "Run Ta4jManualDemo",
+        "request": "launch",
+        "mainClass": "com.trading.ta4j.Ta4jManualDemo",
+        "projectName": "backtest-trading",
+        "cwd": "${workspaceFolder}/backend/backtest-trading",
+        "console": "integratedTerminal"
+    }
+]
+}
