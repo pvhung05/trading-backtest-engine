@@ -33,7 +33,8 @@ public class DefaultPortfolioService implements PortfolioService {
     }
 
     @Override
-    public PortfolioResult calculate(List<ExecutedTrade> trades, BarSeries series, PortfolioConfig config) {
+    public PortfolioResult calculate(List<ExecutedTrade> trades, BarSeries series,
+            PortfolioConfig config, int warmupBars) {
         validator.validate(trades, series, config);
 
         if (trades == null) {
@@ -41,8 +42,11 @@ public class DefaultPortfolioService implements PortfolioService {
         }
 
         int barCount = series.getBarCount();
+        if (warmupBars < 0) warmupBars = 0;
+        if (warmupBars >= barCount) warmupBars = barCount - 1;
 
-        // Index trades by their entry/exit bar index for O(1) lookup
+        // Index trades by their entry/exit bar index for O(1) lookup; only trades
+        // whose entire lifecycle is visible in the simulation window are considered
         Map<Integer, ExecutedTrade> tradesByEntryIndex = new HashMap<>();
         Map<Integer, ExecutedTrade> tradesByExitIndex = new HashMap<>();
 
@@ -50,6 +54,10 @@ public class DefaultPortfolioService implements PortfolioService {
             int entryIdx = findBarIndex(series, trade.getEntryTime());
             int exitIdx = findBarIndex(series, trade.getExitTime());
 
+            // Skip trades that open or close before the simulation window starts
+            if (entryIdx < warmupBars || exitIdx < warmupBars) {
+                continue;
+            }
             if (entryIdx >= 0 && entryIdx < barCount) {
                 tradesByEntryIndex.put(entryIdx, trade);
             }
@@ -67,7 +75,7 @@ public class DefaultPortfolioService implements PortfolioService {
         List<PortfolioSnapshot> snapshots = new ArrayList<>();
         List<EquityPoint> equityCurve = new ArrayList<>();
 
-        for (int i = 0; i < barCount; i++) {
+        for (int i = warmupBars; i < barCount; i++) {
             Bar bar = series.getBar(i);
             double close = bar.getClosePrice().doubleValue();
             var ts = bar.getEndTime();
@@ -89,6 +97,7 @@ public class DefaultPortfolioService implements PortfolioService {
                     .openPosition(isOpen)
                     .openPositionPnl(openPnl)
                     .build());
+
             ExecutedTrade exitTrade = tradesByExitIndex.get(i);
             if (exitTrade != null) {
                 tradeNumber++;
@@ -107,7 +116,6 @@ public class DefaultPortfolioService implements PortfolioService {
                         .build());
             }
 
-            // Open new position at this candle
             ExecutedTrade entryTrade = tradesByEntryIndex.get(i);
             if (entryTrade != null && positionQty == 0) {
                 positionQty = entryTrade.getQuantity();
