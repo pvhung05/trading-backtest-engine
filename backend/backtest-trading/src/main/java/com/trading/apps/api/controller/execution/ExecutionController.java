@@ -13,7 +13,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.trading.apps.api.mapper.execution.ExecutionSimulationResponseMapper;
 import com.trading.apps.api.request.execution.ExecutionSimulationRequest;
+import com.trading.apps.api.request.portfolio.PortfolioSimulationRequest;
 import com.trading.apps.api.response.execution.ExecutionSimulationResponse;
+import com.trading.apps.api.response.simulation.FullSimulationResponse;
 import com.trading.apps.execution.model.ExecutionSimulationCommand;
 import com.trading.apps.execution.model.ExecutedTrade;
 import com.trading.apps.execution.service.ExecutionSimulationService;
@@ -46,5 +48,15 @@ public class ExecutionController {
 
         List<ExecutedTrade> executedTrades = executionSimulationService.execute(command);
         return ResponseEntity.ok(responseMapper.toResponse(command, executedTrades));
+    }
+
+    @PostMapping("/simulation/full")
+    public ResponseEntity<FullSimulationResponse> fullSimulation(@RequestBody PortfolioSimulationRequest request) {
+        if (request.getCapital() == null || request.getCapital() <= 0.0d) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Capital must be greater than 0");
+        }
+        FullSimulationResponse response = executionSimulationService.fullSimulation(request);
+        return ResponseEntity.ok(response);
     }
 }
