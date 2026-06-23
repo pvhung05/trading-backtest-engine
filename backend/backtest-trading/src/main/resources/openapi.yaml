@@ -1,0 +1,1173 @@
+openapi: 3.0.3
+info:
+  title: Trading Backtest Engine API
+  description: |
+    REST API for a trading backtest engine supporting multiple strategies
+    (SMA_CROSS, RSI, MACD) with execution simulation, portfolio calculation,
+    and metrics analysis.
+
+    ## Authentication
+    Most endpoints require a valid JWT token in the `Authorization` header.
+    Register or login at `/api/auth/*` to obtain a token.
+  version: 1.0.0
+  contact:
+    name: Trading Backtest Team
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Authentication and user management
+  - name: Market Data
+    description: Market data loading and caching
+  - name: Backtest
+    description: Backtest execution (returns trading records only)
+  - name: Execution
+    description: Trade execution simulation
+  - name: Portfolio
+    description: Portfolio simulation (full pipeline)
+  - name: Backtest Runs
+    description: Persisted backtest runs with full results
+  - name: Metrics
+    description: Performance metrics calculation
+
+paths:
+
+  # ─────────────────────────────────────────────
+  # AUTH
+  # ─────────────────────────────────────────────
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error or username/email already exists
+        '409':
+          description: Username or email already taken
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login and obtain a JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Not authenticated
+
+  # ─────────────────────────────────────────────
+  # MARKET DATA
+  # ─────────────────────────────────────────────
+  /api/market/load:
+    get:
+      tags: [Market Data]
+      summary: Load market data (candles) for a symbol and timeframe
+      security: []
+      parameters:
+        - name: symbol
+          in: query
+          required: true
+          schema:
+            type: string
+            example: BTCUSDT
+        - name: timeframe
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d]
+            example: 1h
+        - name: startTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+            example: "2024-01-01T00:00:00Z"
+        - name: endTime
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+            example: "2024-12-31T23:59:59Z"
+      responses:
+        '200':
+          description: Market data loaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketDataResponse'
+
+  /api/market/cache:
+    get:
+      tags: [Market Data]
+      summary: Get overview of currently cached market data
+      security: []
+      responses:
+        '200':
+          description: Cache overview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MarketCacheResponse'
+
+    delete:
+      tags: [Market Data]
+      summary: Clear all cached market data
+      responses:
+        '204':
+          description: Cache cleared successfully
+
+  # ─────────────────────────────────────────────
+  # BACKTEST
+  # ─────────────────────────────────────────────
+  /api/backtest/trading-records:
+    post:
+      tags: [Backtest]
+      summary: Run a backtest and return trading records (no persistence)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BacktestTradingRecordRequest'
+      responses:
+        '200':
+          description: Backtest executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestTradingRecordResponse'
+
+  # ─────────────────────────────────────────────
+  # EXECUTION
+  # ─────────────────────────────────────────────
+  /api/execution/executed-trades:
+    post:
+      tags: [Execution]
+      summary: Simulate trade execution with commission, slippage, and position sizing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionSimulationRequest'
+      responses:
+        '200':
+          description: Execution simulated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionSimulationResponse'
+        '400':
+          description: Capital must be greater than 0
+
+  /api/execution/simulation/full:
+    post:
+      tags: [Execution]
+      summary: Run full backtest-to-execution pipeline, returning trades and equity curve
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioSimulationRequest'
+      responses:
+        '200':
+          description: Full simulation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FullSimulationResponse'
+        '400':
+          description: Capital must be greater than 0
+
+  # ─────────────────────────────────────────────
+  # PORTFOLIO
+  # ─────────────────────────────────────────────
+  /api/portfolio/simulate:
+    post:
+      tags: [Portfolio]
+      summary: |
+        Run a full portfolio simulation (market data → backtest → execution → portfolio).
+        Returns equity curve at every candle bar (mark-to-market).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PortfolioSimulationRequest'
+      responses:
+        '200':
+          description: Simulation completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortfolioSimulationResponse'
+
+  # ─────────────────────────────────────────────
+  # BACKTEST RUNS (Persisted)
+  # ─────────────────────────────────────────────
+  /api/backtest-runs:
+    post:
+      tags: [Backtest Runs]
+      summary: Run a backtest, persist results, and return full details
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunBacktestRequest'
+      responses:
+        '201':
+          description: Backtest saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestRunDetailResponse'
+        '400':
+          description: Invalid parameters or no market data available
+
+    get:
+      tags: [Backtest Runs]
+      summary: List all backtest runs for the authenticated user (paginated)
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Paginated list of backtest runs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BacktestRunSummaryResponse'
+                  totalElements:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  number:
+                    type: integer
+
+  /api/backtest-runs/{id}:
+    get:
+      tags: [Backtest Runs]
+      summary: Get detailed view of a specific backtest run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Backtest run details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BacktestRunDetailResponse'
+        '404':
+          description: Backtest run not found
+
+  /api/backtest-runs/{id}/trades:
+    get:
+      tags: [Backtest Runs]
+      summary: Get all trades for a specific backtest run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: List of trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TradeDetail'
+        '404':
+          description: Backtest run not found
+
+  /api/backtest-runs/{id}/metrics:
+    get:
+      tags: [Backtest Runs]
+      summary: Get performance metrics for a specific backtest run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Performance metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsDetail'
+        '404':
+          description: Backtest run not found
+
+  /api/backtest-runs/{id}/equity:
+    get:
+      tags: [Backtest Runs]
+      summary: Get equity curve for a specific backtest run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: Equity curve data points
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EquityPointDetail'
+        '404':
+          description: Backtest run not found
+
+  /api/backtest-runs/{id}:
+    delete:
+      tags: [Backtest Runs]
+      summary: Delete a specific backtest run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: Backtest run deleted successfully
+        '404':
+          description: Backtest run not found
+
+  # ─────────────────────────────────────────────
+  # METRICS
+  # ─────────────────────────────────────────────
+  /api/metrics/calculate:
+    post:
+      tags: [Metrics]
+      summary: Calculate performance metrics from trades and equity curve
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MetricsSimulationRequest'
+      responses:
+        '200':
+          description: Metrics calculated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsSimulationResponse'
+
+# ─────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from `/api/auth/login`
+
+  schemas:
+
+    # ── Auth ──────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [username, email, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: trader1
+        email:
+          type: string
+          format: email
+          example: trader@example.com
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: secret123
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: trader1
+        password:
+          type: string
+          format: password
+          example: secret123
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT access token
+        type:
+          type: string
+          example: Bearer
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+          example: trader1
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Market Data ─────────────────────────────
+    MarketDataResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: BTCUSDT
+        timeframe:
+          type: string
+          example: 1h
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        bars:
+          type: array
+          items:
+            $ref: '#/components/schemas/CandleData'
+        barCount:
+          type: integer
+
+    CandleData:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        open:
+          type: number
+          format: double
+        high:
+          type: number
+          format: double
+        low:
+          type: number
+          format: double
+        close:
+          type: number
+          format: double
+        volume:
+          type: number
+          format: double
+
+    MarketCacheResponse:
+      type: object
+      properties:
+        snapshots:
+          type: array
+          items:
+            $ref: '#/components/schemas/CacheSnapshot'
+
+    CacheSnapshot:
+      type: object
+      properties:
+        key:
+          type: string
+          example: "BTCUSDT_1h_1704067200000_1735689599999"
+        barCount:
+          type: integer
+        cachedAt:
+          type: string
+          format: date-time
+
+    # ── Backtest ────────────────────────────────
+    BacktestTradingRecordRequest:
+      type: object
+      required: [symbol, timeframe, startTime, endTime, strategyType, strategyParams]
+      properties:
+        symbol:
+          type: string
+          example: BTCUSDT
+        timeframe:
+          type: string
+          enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d]
+          example: 1h
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+          enum: [SMA_CROSS, RSI, MACD]
+          example: SMA_CROSS
+        strategyParams:
+          type: object
+          description: Strategy-specific parameters
+          example:
+            fastPeriod: 10
+            slowPeriod: 20
+
+    BacktestTradingRecordResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+        strategyParams:
+          type: object
+        warmupBars:
+          type: integer
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/BacktestTradeRecord'
+        totalTrades:
+          type: integer
+        barsProcessed:
+          type: integer
+
+    BacktestTradeRecord:
+      type: object
+      properties:
+        index:
+          type: integer
+        entryTime:
+          type: string
+          format: date-time
+        entryPrice:
+          type: number
+          format: double
+        exitTime:
+          type: string
+          format: date-time
+        exitPrice:
+          type: number
+          format: double
+        side:
+          type: string
+          enum: [LONG, SHORT]
+        profit:
+          type: number
+          format: double
+        profitPercent:
+          type: number
+          format: double
+        holdingBars:
+          type: integer
+
+    # ── Execution ───────────────────────────────
+    ExecutionSimulationRequest:
+      type: object
+      required: [symbol, timeframe, trades, capital, commissionRate, slippageRate, positionSizePercent]
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/BacktestTradeRecord'
+        capital:
+          type: number
+          format: double
+        commissionRate:
+          type: number
+          format: double
+          description: Commission as decimal (e.g. 0.001 for 0.1%)
+        slippageRate:
+          type: number
+          format: double
+          description: Slippage as decimal
+        positionSizePercent:
+          type: number
+          format: double
+          description: Position size as % of capital (e.g. 10.0 for 10%)
+
+    ExecutionSimulationResponse:
+      type: object
+      properties:
+        capital:
+          type: number
+          format: double
+        finalCapital:
+          type: number
+          format: double
+        totalTrades:
+          type: integer
+        executedTrades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutedTradeResponse'
+
+    ExecutedTradeResponse:
+      type: object
+      properties:
+        index:
+          type: integer
+        side:
+          type: string
+        entryTime:
+          type: string
+          format: date-time
+        entryPrice:
+          type: number
+          format: double
+        exitTime:
+          type: string
+          format: date-time
+        exitPrice:
+          type: number
+          format: double
+        quantity:
+          type: number
+          format: double
+        grossProfit:
+          type: number
+          format: double
+        commission:
+          type: number
+          format: double
+        slippage:
+          type: number
+          format: double
+        netProfit:
+          type: number
+          format: double
+        netProfitPercent:
+          type: number
+          format: double
+        holdingBars:
+          type: integer
+        isLong:
+          type: boolean
+
+    # ── Portfolio ───────────────────────────────
+    PortfolioSimulationRequest:
+      type: object
+      required: [symbol, timeframe, startTime, endTime, strategyType, strategyParams, capital]
+      properties:
+        symbol:
+          type: string
+          example: BTCUSDT
+        timeframe:
+          type: string
+          enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d]
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+          enum: [SMA_CROSS, RSI, MACD]
+        strategyParams:
+          type: object
+        capital:
+          type: number
+          format: double
+        commissionRate:
+          type: number
+          format: double
+          default: 0.001
+        slippageRate:
+          type: number
+          format: double
+          default: 0.0005
+        positionSizePercent:
+          type: number
+          format: double
+          default: 10.0
+
+    PortfolioSimulationResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        strategyType:
+          type: string
+        initialCapital:
+          type: number
+          format: double
+        finalCapital:
+          type: number
+          format: double
+        equityCurve:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquityPointResponse'
+        stats:
+          $ref: '#/components/schemas/PortfolioStatsResponse'
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutedTradeResponse'
+
+    FullSimulationResponse:
+      type: object
+      properties:
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        strategyType:
+          type: string
+        initialCapital:
+          type: number
+          format: double
+        finalCapital:
+          type: number
+          format: double
+        totalTrades:
+          type: integer
+        equityCurve:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquityPointResponse'
+        stats:
+          $ref: '#/components/schemas/PortfolioStatsResponse'
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutedTradeResponse'
+
+    EquityPointResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        equity:
+          type: number
+          format: double
+        cash:
+          type: number
+          format: double
+        openPositionPnl:
+          type: number
+          format: double
+        openPosition:
+          type: integer
+          enum: [0, 1]
+
+    PortfolioStatsResponse:
+      type: object
+      properties:
+        totalReturn:
+          type: number
+          format: double
+        totalReturnPercent:
+          type: number
+          format: double
+        maxDrawdown:
+          type: number
+          format: double
+        maxDrawdownPercent:
+          type: number
+          format: double
+        sharpeRatio:
+          type: number
+          format: double
+        winRate:
+          type: number
+          format: double
+
+    # ── Backtest Runs ───────────────────────────
+    RunBacktestRequest:
+      type: object
+      required: [symbol, timeframe, startTime, endTime, strategyType, strategyParams, initialCapital]
+      properties:
+        symbol:
+          type: string
+          example: BTCUSDT
+        timeframe:
+          type: string
+          enum: [1m, 5m, 15m, 30m, 1h, 4h, 1d]
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyType:
+          type: string
+          enum: [SMA_CROSS, RSI, MACD]
+        strategyParams:
+          $ref: '#/components/schemas/StrategyParamsRequest'
+        initialCapital:
+          type: number
+          format: double
+          default: 10000.0
+        commissionRate:
+          type: number
+          format: double
+          default: 0.001
+        slippageRate:
+          type: number
+          format: double
+          default: 0.0005
+        positionSizePercent:
+          type: number
+          format: double
+          default: 10.0
+
+    StrategyParamsRequest:
+      type: object
+      properties:
+        params:
+          type: object
+          additionalProperties: true
+          description: |
+            Strategy-specific parameters.
+            SMA_CROSS: fastPeriod, slowPeriod
+            RSI: period, oversoldLevel, overboughtLevel
+            MACD: fastPeriod, slowPeriod, signalPeriod
+
+    BacktestRunSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        strategyType:
+          type: string
+        initialCapital:
+          type: number
+          format: double
+        finalCapital:
+          type: number
+          format: double
+        totalReturn:
+          type: number
+          format: double
+        totalReturnPercent:
+          type: number
+          format: double
+        totalTrades:
+          type: integer
+        winRate:
+          type: number
+          format: double
+        maxDrawdownPercent:
+          type: number
+          format: double
+        sharpeRatio:
+          type: number
+          format: double
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    BacktestRunDetailResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        symbol:
+          type: string
+        timeframe:
+          type: string
+        strategyType:
+          type: string
+        initialCapital:
+          type: number
+          format: double
+        finalCapital:
+          type: number
+          format: double
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        strategyParams:
+          type: string
+          description: JSON string of strategy parameters
+        createdAt:
+          type: string
+          format: date-time
+        metrics:
+          $ref: '#/components/schemas/MetricsDetail'
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/TradeDetail'
+        equityCurve:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquityPointDetail'
+
+    MetricsDetail:
+      type: object
+      properties:
+        totalReturn:
+          type: number
+          format: double
+        totalReturnPercent:
+          type: number
+          format: double
+        maxDrawdown:
+          type: number
+          format: double
+        maxDrawdownPercent:
+          type: number
+          format: double
+        sharpeRatio:
+          type: number
+          format: double
+        sortinoRatio:
+          type: number
+          format: double
+        winRate:
+          type: number
+          format: double
+        profitFactor:
+          type: number
+          format: double
+        totalTrades:
+          type: integer
+        winningTrades:
+          type: integer
+        losingTrades:
+          type: integer
+        avgWinningTrade:
+          type: number
+          format: double
+        avgLosingTrade:
+          type: number
+          format: double
+        avgTrade:
+          type: number
+          format: double
+        avgHoldingBars:
+          type: number
+          format: double
+        maxConsecutiveWins:
+          type: integer
+        maxConsecutiveLosses:
+          type: integer
+
+    TradeDetail:
+      type: object
+      properties:
+        index:
+          type: integer
+        side:
+          type: string
+          enum: [LONG, SHORT]
+        entryTime:
+          type: string
+          format: date-time
+        entryPrice:
+          type: number
+          format: double
+        exitTime:
+          type: string
+          format: date-time
+        exitPrice:
+          type: number
+          format: double
+        quantity:
+          type: number
+          format: double
+        grossProfit:
+          type: number
+          format: double
+        commission:
+          type: number
+          format: double
+        slippage:
+          type: number
+          format: double
+        netProfit:
+          type: number
+          format: double
+        netProfitPercent:
+          type: number
+          format: double
+        holdingBars:
+          type: integer
+        isLong:
+          type: boolean
+        maxFavorableExcursion:
+          type: number
+          format: double
+        maxAdverseExcursion:
+          type: number
+          format: double
+        entrySignal:
+          type: string
+        exitSignal:
+          type: string
+        cumulativePnl:
+          type: number
+          format: double
+
+    EquityPointDetail:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        equity:
+          type: number
+          format: double
+        cash:
+          type: number
+          format: double
+        openPositionPnl:
+          type: number
+          format: double
+        openPosition:
+          type: integer
+          enum: [0, 1]
+
+    # ── Metrics ─────────────────────────────────
+    MetricsSimulationRequest:
+      type: object
+      required: [trades, equityCurve]
+      properties:
+        trades:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutedTradeResponse'
+        equityCurve:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquityPointResponse'
+        stats:
+          type: object
+          description: Optional pre-calculated stats (totalReturn, maxDrawdown, sharpeRatio)
+
+    MetricsSimulationResponse:
+      type: object
+      properties:
+        metrics:
+          $ref: '#/components/schemas/MetricsDetail'
+        equityCurve:
+          type: array
+          items:
+            $ref: '#/components/schemas/EquityPointResponse'
+        stats:
+          $ref: '#/components/schemas/PortfolioStatsResponse'
