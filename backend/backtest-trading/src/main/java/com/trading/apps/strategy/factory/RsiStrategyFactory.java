@@ -71,5 +71,14 @@ public class RsiStrategyFactory implements TradingStrategyFactory {
 
         return new BaseStrategy(entryRule, exitRule);
     }
-    
+
+    @Override
+    public String getEntrySignalName() {
+        return "RSI Overbought";
+    }
+
+    @Override
+    public String getExitSignalName() {
+        return "RSI Oversold";
+    }
 }

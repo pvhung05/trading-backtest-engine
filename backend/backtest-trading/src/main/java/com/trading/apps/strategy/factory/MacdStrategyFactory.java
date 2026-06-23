@@ -80,5 +80,14 @@ public class MacdStrategyFactory implements TradingStrategyFactory {
 
         return new BaseStrategy(entryRule, exitRule);
     }
-    
+
+    @Override
+    public String getEntrySignalName() {
+        return "MACD Cross Down";
+    }
+
+    @Override
+    public String getExitSignalName() {
+        return "MACD Cross Up";
+    }
 }

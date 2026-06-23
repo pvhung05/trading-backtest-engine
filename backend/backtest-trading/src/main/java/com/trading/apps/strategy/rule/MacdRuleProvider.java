@@ -9,12 +9,14 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class MacdRuleProvider {
+    // Entry when MACD crosses down below Signal line
     public Rule buildEntryRule(MACDIndicator macd, EMAIndicator signal) {
-        return new CrossedUpIndicatorRule(macd, signal);
+        return new CrossedDownIndicatorRule(macd, signal);
     }
 
+    // Exit when MACD crosses up above Signal line
     public Rule buildExitRule(MACDIndicator macd, EMAIndicator signal) {
-        return new CrossedDownIndicatorRule(macd, signal);
+        return new CrossedUpIndicatorRule(macd, signal);
     }
     
 }

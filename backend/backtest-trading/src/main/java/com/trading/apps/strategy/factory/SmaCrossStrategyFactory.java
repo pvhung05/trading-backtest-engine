@@ -63,10 +63,19 @@ public class SmaCrossStrategyFactory implements TradingStrategyFactory {
         SMAIndicator longSma = indicatorProvider.build(series, longP);
         SMAIndicator shortSma = indicatorProvider.build(series, shortP);
 
-        Rule entryRule = ruleProvider.buildEntryRule(longSma, shortSma);
-        Rule exitRule = ruleProvider.buildExitRule(longSma, shortSma);
+        Rule entryRule = ruleProvider.buildEntryRule(shortSma, longSma);
+        Rule exitRule = ruleProvider.buildExitRule(shortSma, longSma);
 
         return new BaseStrategy(entryRule, exitRule);
     }
-    
+
+    @Override
+    public String getEntrySignalName() {
+        return "SMA Cross Up";
+    }
+
+    @Override
+    public String getExitSignalName() {
+        return "SMA Cross Down";
+    }
 }

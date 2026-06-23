@@ -15,5 +15,14 @@ public interface TradingStrategyFactory {
             BarSeries series,
             StrategyParameters parameters
     );
-    
+
+    /**
+     * Returns a human-readable name for the entry signal of this strategy.
+     */
+    String getEntrySignalName();
+
+    /**
+     * Returns a human-readable name for the exit signal of this strategy.
+     */
+    String getExitSignalName();
 }
