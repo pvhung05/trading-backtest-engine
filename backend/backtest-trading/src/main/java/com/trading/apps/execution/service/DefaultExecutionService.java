@@ -64,10 +64,12 @@ public class DefaultExecutionService implements ExecutionService {
 		List<TradeExecution> tradeExecutions = tradingRecordMapper.toTradeExecutions(tradingRecord, series, startTime);
 		List<ExecutedTrade> executedTrades = new ArrayList<>(tradeExecutions.size());
 
+		double runningCapital = capital;
+
 		for (TradeExecution tradeExecution : tradeExecutions) {
 			double actualEntryPrice = slippageCalculator.applyBuy(tradeExecution.getEntryPrice(), config.getSlippageRate());
 			double actualExitPrice = slippageCalculator.applySell(tradeExecution.getExitPrice(), config.getSlippageRate());
-			double quantity = quantityCalculator.calculate(capital, actualEntryPrice, config.getPositionSizePercent());
+			double quantity = quantityCalculator.calculate(runningCapital, actualEntryPrice, config.getPositionSizePercent());
 
 			double grossProfit = (actualExitPrice - actualEntryPrice) * quantity;
 			double entryFee = commissionCalculator.calculate(actualEntryPrice * quantity, config.getCommissionRate());
@@ -75,6 +77,7 @@ public class DefaultExecutionService implements ExecutionService {
 			double commission = entryFee + exitFee;
 			double slippageCost = ((actualEntryPrice - tradeExecution.getEntryPrice()) + (tradeExecution.getExitPrice() - actualExitPrice)) * quantity;
 			double netProfit = grossProfit - commission;
+			runningCapital += netProfit;
 
 			executedTrades.add(ExecutedTrade.builder()
 					.entryTime(tradeExecution.getEntryTime())
