@@ -24,11 +24,6 @@ export function SymbolInfo() {
       </div>
 
       <div className="mb-4">
-        <div className="text-xs text-gray-600 mb-1">U.S. Dollar / Japanese Yen ↗ • FXCM</div>
-        <div className="text-xs text-gray-600">Forex</div>
-      </div>
-
-      <div className="mb-4">
         <div className="text-3xl font-bold mb-1">
           158.749<span className="text-sm text-gray-600 ml-1">JPY</span>
         </div>

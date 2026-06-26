@@ -1,4 +1,5 @@
 import { ChevronDown } from 'lucide-react';
+import { BTC_USD_DAILY } from '../data/mockOHLCV';
 
 interface WatchlistItem {
   symbol: string;
@@ -10,6 +11,31 @@ interface WatchlistItem {
 }
 
 const stocksData: WatchlistItem[] = [];
+
+const cryptoData: WatchlistItem[] = (() => {
+  const candles = BTC_USD_DAILY;
+  const last = candles[candles.length - 1];
+  const prev = candles[candles.length - 2];
+  const first = candles[0];
+  return [
+    {
+      symbol: 'BTC/USD',
+      name: 'Bitcoin',
+      price: last.close,
+      change: last.close - prev.close,
+      changePercent: ((last.close - prev.close) / prev.close) * 100,
+      icon: '₿',
+    },
+    {
+      symbol: 'BTC/USD',
+      name: 'Bitcoin (period)',
+      price: last.close,
+      change: last.close - first.open,
+      changePercent: ((last.close - first.open) / first.open) * 100,
+      icon: '₿',
+    },
+  ];
+})();
 
 const futuresData: WatchlistItem[] = [
   { symbol: 'USOIL', price: 86.46, change: 2.47, changePercent: 2.94 },
@@ -54,6 +80,20 @@ export function Watchlist() {
       <div className="border-b border-gray-200">
         <div className="px-3 py-2 flex items-center gap-2 text-xs text-gray-600">
           <ChevronDown className="w-3 h-3" />
+          <span>CRYPTO</span>
+        </div>
+        {cryptoData.map((item, idx) => (
+          <WatchlistRow
+            key={`${item.symbol}-${idx}`}
+            item={item}
+            isSelected={idx === 0}
+          />
+        ))}
+      </div>
+
+      <div className="border-b border-gray-200">
+        <div className="px-3 py-2 flex items-center gap-2 text-xs text-gray-600">
+          <ChevronDown className="w-3 h-3" />
           <span>FUTURES</span>
         </div>
         {futuresData.map((item) => (
@@ -67,7 +107,7 @@ export function Watchlist() {
           <span>FOREX</span>
         </div>
         {forexData.map((item) => (
-          <WatchlistRow key={item.symbol} item={item} isSelected={item.symbol === 'USDJPY'} />
+          <WatchlistRow key={item.symbol} item={item} />
         ))}
       </div>
     </div>
@@ -83,12 +123,14 @@ function WatchlistRow({ item, isSelected = false }: { item: WatchlistItem; isSel
         isSelected ? 'bg-blue-50 border-l-2 border-blue-500' : ''
       }`}
     >
-      <div className="font-medium">{item.symbol}</div>
-      <div className="text-right">{item.price.toLocaleString()}</div>
-      <div className={`text-right ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
-        {isPositive ? '+' : ''}{item.change.toFixed(item.change < 1 ? 5 : 2)}
+      <div className="font-medium truncate">{item.symbol}</div>
+      <div className="text-right tabular-nums">
+        {item.price.toLocaleString('en-US', { maximumFractionDigits: 2 })}
       </div>
-      <div className={`text-right ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+      <div className={`text-right tabular-nums ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+        {isPositive ? '+' : ''}{item.change.toLocaleString('en-US', { maximumFractionDigits: 2 })}
+      </div>
+      <div className={`text-right tabular-nums ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
         {isPositive ? '+' : ''}{item.changePercent.toFixed(2)}%
       </div>
     </div>

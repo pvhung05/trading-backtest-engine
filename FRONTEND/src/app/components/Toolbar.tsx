@@ -20,6 +20,10 @@ import {
   Heart,
   Flag
 } from 'lucide-react';
+import { useState } from 'react';
+import { IntervalDropdown } from './IntervalDropdown';
+import { IndicatorsDialog } from './IndicatorsDialog';
+import { useOHLCV } from './OHLCVContext';
 
 export function LeftToolbar() {
   const tools = [
@@ -54,14 +58,19 @@ export function LeftToolbar() {
 }
 
 export function TopToolbar() {
+  const [interval, setInterval] = useState('1d');
+  const [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const { symbol } = useOHLCV();
+
   return (
+    <>
     <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-red-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-            P
+          <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
+            ₿
           </div>
-          <span className="font-semibold">USD/JPY</span>
+          <span className="font-semibold">{symbol}</span>
           <button className="p-1 hover:bg-gray-100 rounded">
             <Star className="w-4 h-4" />
           </button>
@@ -70,36 +79,20 @@ export function TopToolbar() {
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button className="px-3 py-1 text-sm hover:bg-gray-100 rounded">1m</button>
-          <button className="p-1 hover:bg-gray-100 rounded">
-            <BarChart2 className="w-4 h-4" />
-          </button>
-        </div>
+        <IntervalDropdown value={interval} onChange={setInterval} />
 
-        <button className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm">
+        <button
+          onClick={() => setIndicatorsOpen(true)}
+          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm"
+        >
           <BarChart2 className="w-4 h-4" />
           Indicators
-        </button>
-
-        <button className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm">
-          <Bell className="w-4 h-4" />
-          Alert
         </button>
 
         <button className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm">
           <RotateCcw className="w-4 h-4" />
           Replay
         </button>
-
-        <div className="flex items-center gap-1">
-          <button className="p-1 hover:bg-gray-100 rounded">
-            <Undo className="w-4 h-4" />
-          </button>
-          <button className="p-1 hover:bg-gray-100 rounded">
-            <Redo className="w-4 h-4" />
-          </button>
-        </div>
       </div>
 
       <div className="flex items-center gap-2">
@@ -119,36 +112,59 @@ export function TopToolbar() {
         </button>
       </div>
     </div>
+
+    <IndicatorsDialog
+      open={indicatorsOpen}
+      onClose={() => setIndicatorsOpen(false)}
+    />
+    </>
   );
 }
 
+function fmt(str: string) {
+  if (str === '—') return str;
+  const v = parseFloat(str);
+  return isNaN(v) ? str : v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 export function ChartHeader() {
+  const { data, symbol } = useOHLCV();
+
+  const close = parseFloat(data.close);
+  const isGreen = !isNaN(close) && close >= 0;
+  const colorClass = isGreen ? 'text-green-600' : 'text-gray-900';
+
   return (
-    <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-4">
-      <div className="flex items-center gap-2">
-        <span className="text-sm">🇺🇸 U.S. Dollar / Japanese Yen • 1 • FXCM</span>
-        <span className="text-sm">🟰</span>
+    <div className="bg-white border-b border-gray-200 px-3 py-1.5 flex items-center gap-4 text-xs select-none overflow-x-auto">
+      {/* Symbol info */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
+          ₿
+        </div>
+        <span className="font-medium text-gray-900">{symbol}</span>
       </div>
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-red-600">O 158.771</span>
-        <span className="text-red-600">H 158.774</span>
-        <span className="text-red-600">L 158.746</span>
-        <span className="text-red-600">C 158.749</span>
-        <span className="text-red-600">-0.022 (-0.01%)</span>
-      </div>
-      <div className="flex items-center gap-2 ml-auto">
-        <button className="px-3 py-1 border border-red-300 text-red-600 rounded text-sm bg-red-50">
-          158.750 SELL
-        </button>
-        <span className="text-xs text-gray-500">0.1</span>
-        <button className="px-3 py-1 border border-blue-300 text-blue-600 rounded text-sm bg-blue-50">
-          158.751 BUY
-        </button>
-      </div>
-      <div className="flex items-center gap-1 text-xs">
-        <span className="text-gray-600">▲</span>
-        <span className="text-red-600">Vol</span>
-        <span className="text-red-600">138</span>
+
+      {/* Separator */}
+      <div className="w-px h-4 bg-gray-300 shrink-0" />
+
+      {/* OHLCV */}
+      <div className="flex items-center gap-3">
+        <div className="flex items-center gap-1">
+          <span className="text-gray-400">O</span>
+          <span className="font-medium text-gray-800 tabular-nums">{fmt(data.open)}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-gray-400">H</span>
+          <span className="font-medium text-green-600 tabular-nums">{fmt(data.high)}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-gray-400">L</span>
+          <span className="font-medium text-red-600 tabular-nums">{fmt(data.low)}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="text-gray-400">C</span>
+          <span className={`font-medium tabular-nums ${colorClass}`}>{fmt(data.close)}</span>
+        </div>
       </div>
     </div>
   );
