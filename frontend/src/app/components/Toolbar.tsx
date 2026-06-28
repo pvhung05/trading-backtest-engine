@@ -10,7 +10,7 @@ import {
   Plus,
   BarChart2,
   Bell,
-  RotateCcw,
+  FileCode,
   Undo,
   Redo,
   Image,
@@ -18,12 +18,23 @@ import {
   Camera,
   Star,
   Heart,
-  Flag
+  Flag,
+  Wand2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { IntervalDropdown } from './IntervalDropdown';
 import { IndicatorsDialog } from './IndicatorsDialog';
 import { useOHLCV } from './OHLCVContext';
+
+export interface SelectedIndicator {
+  name: string;
+  badge?: 'NEW' | 'BETA';
+}
+
+export interface SelectedStrategy {
+  name: string;
+  badge?: 'NEW' | 'BETA';
+}
 
 export function LeftToolbar() {
   const tools = [
@@ -57,9 +68,17 @@ export function LeftToolbar() {
   );
 }
 
-export function TopToolbar() {
+export function TopToolbar({
+  onSelectIndicator,
+  onSelectStrategy,
+}: {
+  onSelectIndicator?: (indicator: SelectedIndicator) => void;
+  onSelectStrategy?: (strategy: SelectedStrategy) => void;
+}) {
   const [interval, setInterval] = useState('1d');
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
+  const [strategiesOpen, setStrategiesOpen] = useState(false);
+  const [myScriptsOpen, setMyScriptsOpen] = useState(false);
   const { symbol } = useOHLCV();
 
   return (
@@ -89,9 +108,20 @@ export function TopToolbar() {
           Indicators
         </button>
 
-        <button className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm">
-          <RotateCcw className="w-4 h-4" />
-          Replay
+        <button
+          onClick={() => setStrategiesOpen(true)}
+          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm"
+        >
+          <Wand2 className="w-4 h-4" />
+          Strategies
+        </button>
+
+        <button
+          onClick={() => setMyScriptsOpen(true)}
+          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm"
+        >
+          <FileCode className="w-4 h-4" />
+          My Scripts
         </button>
       </div>
 
@@ -116,6 +146,19 @@ export function TopToolbar() {
     <IndicatorsDialog
       open={indicatorsOpen}
       onClose={() => setIndicatorsOpen(false)}
+      onSelect={(ind) => onSelectIndicator?.(ind)}
+    />
+    <IndicatorsDialog
+      open={strategiesOpen}
+      onClose={() => setStrategiesOpen(false)}
+      onSelect={(ind) => onSelectStrategy?.(ind as SelectedStrategy)}
+      initialTab="strategies"
+    />
+    <IndicatorsDialog
+      open={myScriptsOpen}
+      onClose={() => setMyScriptsOpen(false)}
+      onSelect={(ind) => onSelectIndicator?.(ind)}
+      initialTab="my-scripts"
     />
     </>
   );
