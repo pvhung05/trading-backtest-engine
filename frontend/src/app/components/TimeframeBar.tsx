@@ -32,7 +32,7 @@ export function TimeframeBar({ value = '1D', onChange }: TimeframeBarProps) {
   };
 
   return (
-    <div className="h-8 bg-white border-t border-gray-200 px-2 flex items-center justify-between text-xs select-none">
+    <div className="h-10 bg-white border-t border-gray-200 px-2 flex items-center justify-between text-xs select-none">
       <div className="flex items-center">
         {TIMEFRAMES.map((tf) => {
           const isActive = active === tf;
@@ -40,7 +40,7 @@ export function TimeframeBar({ value = '1D', onChange }: TimeframeBarProps) {
             <button
               key={tf}
               onClick={() => handleClick(tf)}
-              className={`px-2.5 h-8 transition-colors ${
+              className={`px-2.5 h-10 transition-colors ${
                 isActive
                   ? 'text-blue-600'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
@@ -52,7 +52,7 @@ export function TimeframeBar({ value = '1D', onChange }: TimeframeBarProps) {
         })}
         <div className="w-px h-4 bg-gray-300 mx-1" />
         <button
-          className="size-8 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+          className="size-10 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
           title="Go to date"
         >
           <CalendarClock className="size-4" />
