@@ -2,3 +2,99 @@
 @source '../**/*.{js,ts,jsx,tsx}';
 
 @import 'tw-animate-css';
+
+@layer utilities {
+  .strategy-tabs-scroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .strategy-tabs-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Slim, low-contrast scrollbars that float over content instead of
+     reserving layout space. Applied to any scrollable container via the
+     `.app-scrollbar` utility. On the major engines:
+       - Firefox: `scrollbar-width: thin` shrinks the bar; combined with
+         `scrollbar-color` the track is transparent and the thumb is soft.
+       - WebKit/Blink (Chromium / Edge / Vivaldi):
+         `-webkit-scrollbar` is replaced with a 6px-wide thumb and a
+         fully transparent track. A transparent `background-clip: content`
+         hint isn't needed since the track is `transparent`. */
+  .app-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(156, 163, 175, 0.45) transparent;
+  }
+  .app-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .app-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .app-scrollbar::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.4);
+    border-radius: 9999px;
+    /* Use a transparent border ring so the thumb visually pads away from
+       the container edge — keeps it from feeling chunky. */
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+  .app-scrollbar::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(107, 114, 128, 0.7);
+  }
+  .app-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  /* `app-scrollbar-overlay` goes further and hides the bar completely
+     unless the container is actively scrolling/hovered. Use this for
+     panes (like the trade history body) where the bar should never
+     claim width or visual weight. */
+  .app-scrollbar-overlay {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .app-scrollbar-overlay::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .app-scrollbar-overlay::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .app-scrollbar-overlay::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.35);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+  }
+  .app-scrollbar-overlay:hover::-webkit-scrollbar-thumb,
+  .app-scrollbar-overlay:focus-within::-webkit-scrollbar-thumb {
+    background-color: rgba(107, 114, 128, 0.6);
+  }
+  .app-scrollbar-overlay::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
+/* Force the *global* scrollbar everywhere to match the same slim,
+   neutral look so a stray `overflow-auto` doesn't show the platform's
+   default chunky bar. Chrome / Edge honor `::-webkit-scrollbar` on
+   `html`; Firefox reads `scrollbar-color`. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.4) transparent;
+}
+html::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}

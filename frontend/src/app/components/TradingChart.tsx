@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
+import { createChart, ColorType, CrosshairMode, LineStyle } from 'lightweight-charts';
 import { useOHLCV } from './OHLCVContext';
 import { BTC_USD_DAILY } from '../data/mockOHLCV';
+import { MOCK_TRADES } from '../data/mockTrades';
 import { SelectedIndicator, SelectedStrategy } from './Toolbar';
 import { X, Eye, EyeOff, MoreHorizontal, ChevronUp, ChevronDown, Activity, BarChart2 } from 'lucide-react';
 
@@ -169,6 +170,10 @@ export function TradingChart({
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
   const candleSeriesRef = useRef<ReturnType<ReturnType<typeof createChart>['addCandlestickSeries']> | null>(null);
   const volumeSeriesRef = useRef<ReturnType<ReturnType<typeof createChart>['addHistogramSeries']> | null>(null);
+  // Indicator + trade-marker series. Each is added once the chart is
+  // ready and removed together with the chart in the cleanup function.
+  const smaSeriesRef = useRef<ReturnType<ReturnType<typeof createChart>['addLineSeries']> | null>(null);
+  const markersRef = useRef<ReturnType<ReturnType<ReturnType<typeof createChart>['addCandlestickSeries']>['setMarkers']> | null>(null);
   const { setData } = useOHLCV();
 
   const [crosshair, setCrosshair] = useState<{
@@ -180,13 +185,56 @@ export function TradingChart({
 
   const candles = useMemo(() => buildCandles(BTC_USD_DAILY), []);
 
+  // Simple Moving Average (period = 20). The first `period-1` points are
+  // undefined to mirror how most charting platforms render the warmup.
+  const SMA_PERIOD = 20;
+  const smaData = useMemo(() => {
+    const out: { time: number; value: number }[] = [];
+    let sum = 0;
+    for (let i = 0; i < candles.length; i++) {
+      sum += candles[i].close;
+      if (i >= SMA_PERIOD) sum -= candles[i - SMA_PERIOD].close;
+      if (i >= SMA_PERIOD - 1) {
+        out.push({ time: candles[i].time, value: sum / SMA_PERIOD });
+      }
+    }
+    return out;
+  }, [candles]);
+
+  // Translate mock trades into lightweight-charts markers. Long entries
+  // are green up arrows, long exits are red down arrows (and vice versa
+  // for shorts) so the trade direction is obvious at a glance.
+  const tradeMarkers = useMemo(
+    () =>
+      MOCK_TRADES.flatMap((t) => [
+        {
+          time: t.entryTime,
+          position: 'belowBar' as const,
+          color: '#22c55e',
+          shape: 'arrowUp' as const,
+          text: t.side === 'long' ? 'Long' : 'Short',
+        },
+        {
+          time: t.exitTime,
+          position: 'aboveBar' as const,
+          color: '#ef4444',
+          shape: 'arrowDown' as const,
+          text: `PnL ${t.pnl >= 0 ? '+' : ''}${t.pnl.toFixed(0)}`,
+        },
+      ]).sort((a, b) => a.time - b.time),
+    []
+  );
+
   useEffect(() => {
-    if (!containerRef.current) return;
 
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: '#ffffff' },
         textColor: '#333',
+        // Hide the small "TradingView" attribution watermark that
+        // lightweight-charts paints in the bottom-left corner. We're
+        // already running our own UI; the watermark adds visual noise.
+        watermark: { visible: false },
       },
       width: containerRef.current.clientWidth,
       height: containerRef.current.clientHeight,
@@ -245,6 +293,27 @@ export function TradingChart({
 
     candleSeriesRef.current = candlestickSeries;
     volumeSeriesRef.current = volumeSeries;
+
+    // ── Indicators: SMA 20 ─────────────────────────────────────────
+    // Drawn directly here (rather than in a separate effect) so it is
+    // guaranteed to run after the candlestick series is registered.
+    const smaSeries = chart.addLineSeries({
+      color: '#f59e0b',
+      lineWidth: 2,
+      lineStyle: LineStyle.Solid,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      title: `SMA ${SMA_PERIOD}`,
+    });
+    smaSeries.setData(smaData);
+    smaSeriesRef.current = smaSeries;
+
+    // ── Trade markers: entry (green up arrow) + exit (red down arrow)
+    // Markers must be set on a series that already has data; the candle
+    // series qualifies. Sorted by time so lightweight-charts accepts
+    // them in ascending order.
+    candlestickSeries.setMarkers(tradeMarkers);
+    markersRef.current = candlestickSeries.setMarkers.bind(candlestickSeries);
 
     const last = candles[candles.length - 1];
     const prev = candles[candles.length - 2];
@@ -337,7 +406,7 @@ export function TradingChart({
       resizeObserver.disconnect();
       chart.remove();
     };
-  }, [candles, setData]);
+  }, [candles, setData, smaData, tradeMarkers]);
 
   return (
     <div className="relative w-full h-full">

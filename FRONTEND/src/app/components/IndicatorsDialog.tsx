@@ -101,10 +101,12 @@ const TAB_LABELS: Record<TabKey, string> = {
 interface IndicatorsDialogProps {
   open: boolean;
   onClose: () => void;
+  onSelect?: (indicator: Indicator) => void;
+  initialTab?: TabKey;
 }
 
-export function IndicatorsDialog({ open, onClose }: IndicatorsDialogProps) {
-  const [tab, setTab] = useState<TabKey>('indicators');
+export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indicators' }: IndicatorsDialogProps) {
+  const [tab, setTab] = useState<TabKey>(initialTab);
   const [query, setQuery] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -203,6 +205,10 @@ export function IndicatorsDialog({ open, onClose }: IndicatorsDialogProps) {
                 {filtered.map((ind) => (
                   <li
                     key={ind.name}
+                    onClick={() => {
+                      onSelect?.(ind);
+                      onClose();
+                    }}
                     className="group flex items-center justify-between py-2 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded"
                   >
                     <div className="flex items-center gap-2">

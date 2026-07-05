@@ -23,6 +23,22 @@ export default function App() {
   const [allStrategiesHidden, setAllStrategiesHidden] = useState(false);
   const strategyPanelRef = useRef<ImperativePanelHandle>(null);
   const strategyPanelCollapsedRef = useRef(false);
+  // Track whether the user has expanded the strategy panel so the chevron
+  // icon can flip direction. Updates both via button click and manual drag.
+  const [strategyExpanded, setStrategyExpanded] = useState(false);
+  // When the user maximizes the strategy panel, hide the chart entirely so
+  // the strategy view occupies the full vertical space.
+  const [chartHidden, setChartHidden] = useState(false);
+  const chartPanelRef = useRef<ImperativePanelHandle | null>(null);
+  // Track active view tab in strategy panel (metrics/history/period/capital).
+  // This state lives here so it's preserved across panel maximize/restore.
+  const [activeView, setActiveView] = useState<'metrics' | 'history' | 'period' | 'capital'>('metrics');
+  // Capture the panel sizes right before the chart is hidden, so we can
+  // restore them faithfully when the user re-opens the chart via the
+  // minimize button (otherwise the chart panel snaps back to its
+  // `defaultSize` and the layout becomes awkward to drag again).
+  const savedChartSizeRef = useRef<number | null>(null);
+  const savedStrategySizeRef = useRef<number | null>(null);
 
   // Collapse the strategy panel by default until a strategy is added.
   useEffect(() => {
@@ -127,61 +143,160 @@ export default function App() {
           <PanelGroup direction="horizontal">
             <Panel defaultSize={75} minSize={20}>
               <div className="h-full flex flex-col">
-                <ChartHeader />
+                {!chartHidden && <ChartHeader />}
                 <div className="flex-1 min-h-0 flex flex-col">
-                  <PanelGroup direction="vertical">
-                    <Panel defaultSize={80} minSize={30}>
-                      <div className="h-full">
-                        <TradingChart
-                          selectedIndicators={selectedIndicators}
-                          hiddenIndicators={effectiveHiddenIndicators}
-                          onToggleIndicatorVisibility={handleToggleIndicatorVisibility}
-                          onRemoveIndicator={handleRemoveIndicator}
-                          allIndicatorsHidden={allIndicatorsHidden}
-                          onToggleAllIndicators={handleToggleAllIndicators}
-                          selectedStrategies={selectedStrategies}
-                          hiddenStrategies={effectiveHiddenStrategies}
-                          onToggleStrategyVisibility={handleToggleStrategyVisibility}
-                          onRemoveStrategy={handleRemoveStrategy}
-                          allStrategiesHidden={allStrategiesHidden}
-                          onToggleAllStrategies={handleToggleAllStrategies}
-                        />
-                      </div>
-                    </Panel>
+                  {chartHidden ? (
+                    /* When the chart is hidden we render the strategy
+                       panel directly at 100% height. Wrapping a single
+                       child inside a PanelGroup makes react-resizable-
+                       panels warn that the layout total is only ~15%,
+                       which is noisy even though it's harmless.
+                       The `key` forces a fresh JSX subtree (and ref)
+                       each time we toggle chart visibility — otherwise
+                       the old panel's internals linger and the drag
+                       direction gets inverted. */
+                    <div key="strategy-standalone" className="h-full flex flex-col bg-white border-t border-gray-200">
+                      <StrategyBar
+                            strategies={selectedStrategies.filter(
+                              (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
+                            )}
+                            onRemove={handleRemoveStrategy}
+                            expanded={strategyExpanded}
+                            chartHidden={chartHidden}
+                            activeView={activeView}
+                            onActiveViewChange={setActiveView}
+                            onCollapsePanel={() => {
+                              strategyPanelRef.current?.resize(10);
+                              setStrategyExpanded(false);
+                              setChartHidden(false);
+                            }}
+                            onExpandPanel={() => {
+                              const panel = strategyPanelRef.current;
+                              if (!panel) return;
+                              panel.resize(85);
+                              setStrategyExpanded(true);
+                            }}
+                            onMaximizePanel={() => {
+                              setChartHidden(true);
+                              setStrategyExpanded(true);
+                            }}
+                            onRestorePanel={() => {
+                              setChartHidden(false);
+                              setStrategyExpanded(false);
+                            }}
+                          />
+                    </div>
+                  ) : (
+                    <PanelGroup direction="vertical">
+                      <Panel
+                        defaultSize={85}
+                        minSize={30}
+                        collapsible
+                        ref={(handle: ImperativePanelHandle | null) => {
+                          chartPanelRef.current = handle;
+                        }}
+                        onCollapse={() => setChartHidden(true)}
+                      >
+                        <div className="h-full">
+                          <TradingChart
+                            selectedIndicators={selectedIndicators}
+                            hiddenIndicators={effectiveHiddenIndicators}
+                            onToggleIndicatorVisibility={handleToggleIndicatorVisibility}
+                            onRemoveIndicator={handleRemoveIndicator}
+                            allIndicatorsHidden={allIndicatorsHidden}
+                            onToggleAllIndicators={handleToggleAllIndicators}
+                            selectedStrategies={selectedStrategies}
+                            hiddenStrategies={effectiveHiddenStrategies}
+                            onToggleStrategyVisibility={handleToggleStrategyVisibility}
+                            onRemoveStrategy={handleRemoveStrategy}
+                            allStrategiesHidden={allStrategiesHidden}
+                            onToggleAllStrategies={handleToggleAllStrategies}
+                          />
+                        </div>
+                      </Panel>
 
-                    <PanelResizeHandle className="h-1 bg-gray-200 hover:bg-blue-400 cursor-row-resize transition-colors" />
+                      <PanelResizeHandle className="h-1 bg-gray-200 hover:bg-blue-400 cursor-row-resize transition-colors" />
 
-                    <Panel
-                      ref={strategyPanelRef}
-                      defaultSize={13}
-                      minSize={8}
-                      collapsible
-                      collapsedSize={6}
-                    >
-                      <div className="h-full flex flex-col bg-white border-t border-gray-200">
-                        <TimeframeBar />
-                        {selectedStrategies.filter(
-                          (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
-                        ).length > 0 && (
-                          <div className="flex-1 min-h-0 overflow-auto">
-                            <StrategyBar
-                              strategies={selectedStrategies.filter(
-                                (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
-                              )}
-                              onRemove={handleRemoveStrategy}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </Panel>
-                  </PanelGroup>
+                      <Panel
+                        ref={strategyPanelRef}
+                        defaultSize={12}
+                        minSize={12}
+                        maxSize={85}
+                        collapsible
+                        collapsedSize={7}
+                        onCollapse={() => setStrategyExpanded(false)}
+                        onExpand={() => setStrategyExpanded(false)}
+                        onResize={(size) => {
+                          // Flip the chevron icon when the user manually
+                          // drags the handle. Anything well above the
+                          // default size (15%) counts as "expanded".
+                          setStrategyExpanded(size > 30);
+                        }}
+                      >
+                        <div className="h-full flex flex-col bg-white border-t border-gray-200">
+                          {!chartHidden && <TimeframeBar />}
+                          {selectedStrategies.filter(
+                            (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
+                          ).length > 0 && (
+                            <div className="flex-1 min-h-0 overflow-hidden">
+                              <StrategyBar
+                                strategies={selectedStrategies.filter(
+                                  (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
+                                )}
+                                onRemove={handleRemoveStrategy}
+                                expanded={strategyExpanded}
+                                chartHidden={chartHidden}
+                                activeView={activeView}
+                                onActiveViewChange={setActiveView}
+                                onCollapsePanel={() => {
+                                  strategyPanelRef.current?.resize(10);
+                                  setStrategyExpanded(false);
+                                  setChartHidden(false);
+                                }}
+                                onExpandPanel={() => {
+                                  const panel = strategyPanelRef.current;
+                                  if (!panel) return;
+                                  panel.resize(85);
+                                  setStrategyExpanded(true);
+                                }}
+                                onMaximizePanel={() => {
+                                  const panel = strategyPanelRef.current;
+                                  if (!panel) return;
+                                  savedChartSizeRef.current =
+                                    chartPanelRef.current?.getSize() ?? null;
+                                  savedStrategySizeRef.current = panel.getSize();
+                                  panel.resize(85);
+                                  setStrategyExpanded(true);
+                                  setChartHidden(true);
+                                }}
+                                onRestorePanel={() => {
+                                  setChartHidden(false);
+                                  setStrategyExpanded(false);
+                                  const strategySize =
+                                    savedStrategySizeRef.current ?? 15;
+                                  window.setTimeout(() => {
+                                    const panel = strategyPanelRef.current;
+                                    if (!panel) return;
+                                    if (panel.isCollapsed()) {
+                                      panel.expand();
+                                    }
+                                    panel.resize(strategySize);
+                                  }, 0);
+                                }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </Panel>
+                    </PanelGroup>
+                  )}
                 </div>
               </div>
             </Panel>
 
             <PanelResizeHandle className="w-1 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-colors" />
 
-            <Panel defaultSize={20} minSize={0} collapsible={true}>
+            <Panel defaultSize={25} minSize={0} maxSize={25} collapsible={true}>
               <div className="h-full overflow-y-auto">
                 <Watchlist />
               </div>
