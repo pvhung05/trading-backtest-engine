@@ -5,7 +5,7 @@ import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 
-import com.trading.apps.execution.model.ExecutedTrade;
+import com.trading.apps.business.execution.model.ExecutedTrade;
 import com.trading.apps.metrics.calculator.AverageLossCalculator;
 import com.trading.apps.metrics.calculator.AverageWinCalculator;
 import com.trading.apps.metrics.calculator.BestTradeCalculator;

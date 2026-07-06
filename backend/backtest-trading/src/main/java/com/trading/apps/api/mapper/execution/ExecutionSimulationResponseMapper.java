@@ -6,9 +6,9 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.trading.apps.api.response.execution.ExecutionSimulationResponse;
-import com.trading.apps.api.response.execution.ExecutedTradeResponse;
-import com.trading.apps.execution.model.ExecutionSimulationCommand;
 import com.trading.apps.execution.model.ExecutedTrade;
+import com.trading.apps.execution.model.ExecutionSimulationCommand;
+import com.trading.apps.api.response.execution.ExecutedTradeResponse;
 
 /**
  * Maps executed trades to API response DTOs.

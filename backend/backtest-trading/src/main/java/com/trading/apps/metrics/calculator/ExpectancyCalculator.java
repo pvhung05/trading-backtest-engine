@@ -6,7 +6,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
-import com.trading.apps.execution.model.ExecutedTrade;
+import com.trading.apps.business.execution.model.ExecutedTrade;
 
 /**
  * Calculates trade expectancy: expected net profit per trade.

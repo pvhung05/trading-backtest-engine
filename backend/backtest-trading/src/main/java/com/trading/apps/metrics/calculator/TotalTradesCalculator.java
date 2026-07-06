@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
-import com.trading.apps.execution.model.ExecutedTrade;
+import com.trading.apps.business.execution.model.ExecutedTrade;
 
 /**
  * Calculates total number of executed trades.

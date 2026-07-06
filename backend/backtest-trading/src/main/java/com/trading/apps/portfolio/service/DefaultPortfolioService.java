@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service;
 import org.ta4j.core.Bar;
 import org.ta4j.core.BarSeries;
 
-import com.trading.apps.execution.model.ExecutedTrade;
+import com.trading.apps.business.execution.model.ExecutedTrade;
 import com.trading.apps.portfolio.model.EquityPoint;
 import com.trading.apps.portfolio.model.Portfolio;
 import com.trading.apps.portfolio.model.PortfolioConfig;
