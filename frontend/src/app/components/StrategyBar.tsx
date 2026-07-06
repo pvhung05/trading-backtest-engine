@@ -32,12 +32,13 @@ interface StrategyBarProps {
   trades?: TradeRecord[];
   activeView?: 'metrics' | 'history' | 'period' | 'capital';
   onActiveViewChange?: (view: 'metrics' | 'history' | 'period' | 'capital') => void;
-  // Called when the user clicks the black "Run" button on the right of
-  // the toolbar. The parent (App.tsx) owns the actual backtest request.
   onRunBacktest?: () => void;
-  // Reflects an in-flight backtest so the button can show a spinner and
-  // be disabled while the request is running.
   running?: boolean;
+  // Persisted initial values from localStorage so the UI doesn't reset on reload.
+  initialDateRange?: [string, string];
+  initialCapital?: number;
+  onDateRangeChange?: (range: [string, string]) => void;
+  onCapitalChange?: (capital: number) => void;
 }
 
 type ViewKey = 'metrics' | 'history' | 'period' | 'capital';
@@ -165,23 +166,47 @@ export function StrategyBar({
   onActiveViewChange,
   onRunBacktest,
   running = false,
+  initialDateRange = DEFAULT_RANGE,
+  initialCapital = 1_000_000,
+  onDateRangeChange,
+  onCapitalChange,
 }: StrategyBarProps) {
   const [collapsed, setCollapsed] = useState(false);
   const activeView = activeViewProp;
-  // Track which strategy tab is currently active so we can style it
-  // more prominently than the others. Defaults to the first strategy
-  // so the very first render already highlights something.
   const [activeStrategyName, setActiveStrategyName] = useState<string | null>(
     () => strategies[0]?.name ?? null
   );
-  const [dateRange, setDateRange] = useState<[string, string]>(DEFAULT_RANGE);
+  const [dateRange, setDateRange] = useState<[string, string]>(initialDateRange);
   const [periodOpen, setPeriodOpen] = useState(false);
-  const [capital, setCapital] = useState<number>(1000000);
+  const [capital, setCapital] = useState<number>(initialCapital);
   const [capitalOpen, setCapitalOpen] = useState(false);
-  const [capitalDraft, setCapitalDraft] = useState<string>('1000000');
+  const [capitalDraft, setCapitalDraft] = useState<string>(String(initialCapital));
   const periodRef = useRef<HTMLDivElement>(null);
   const capitalRef = useRef<HTMLDivElement>(null);
   const tabsScrollRef = useRef<HTMLDivElement>(null);
+
+  // Wrap setters so internal changes propagate to the parent (which
+  // owns the persisted state). The parent's onChange handler writes
+  // to localStorage; the prop coming back in keeps these useEffects
+  // idempotent and safe to fire on every render.
+  const updateDateRange = (next: [string, string]) => {
+    setDateRange(next);
+    onDateRangeChange?.(next);
+  };
+  const updateCapital = (next: number) => {
+    setCapital(next);
+    onCapitalChange?.(next);
+  };
+
+  // Sync internal state with persisted parent values on prop change
+  // (covers the case where the parent restores from localStorage after mount).
+  useEffect(() => {
+    setDateRange(initialDateRange);
+  }, [initialDateRange]);
+  useEffect(() => {
+    setCapital(initialCapital);
+    setCapitalDraft(String(initialCapital));
+  }, [initialCapital]);
 
   useEffect(() => {
     if (!periodOpen) return;
@@ -242,14 +267,14 @@ export function StrategyBar({
   };
 
   return (
-    <div className="flex flex-col bg-gray-100 select-none h-full min-h-0">
+    <div className="flex flex-col bg-gray-100 dark:bg-gray-900 select-none h-full min-h-0 text-gray-900 dark:text-gray-100">
       {/* Row 1: strategy tabs */}
       <div className="h-7 flex items-end">
         <div
           ref={tabsScrollRef}
           className="flex items-end min-w-0 flex-1 overflow-x-auto overflow-y-hidden strategy-tabs-scroll"
         >
-          <div className="w-px h-5 bg-gray-300 shrink-0 mb-1.5" />
+          <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 shrink-0 mb-1.5" />
           {strategies.map((s) => {
             const isActive = s.name === activeStrategyName;
             return (
@@ -262,22 +287,24 @@ export function StrategyBar({
                     ? // Active tab: darker fill + bolder text + bottom border
                       // matches the row-2 background so the tab visually
                       // "connects" to the toolbar below it.
-                      'bg-blue-100 border-blue-200 text-gray-900 hover:bg-blue-100'
+                      'bg-blue-100 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800 text-gray-900 dark:text-gray-100 hover:bg-blue-100 dark:hover:bg-blue-900/40'
                     : // Inactive tab: subtle, brightens on hover.
-                      'bg-white border-gray-200 text-gray-800 hover:bg-gray-100'
+                      'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
                 title={s.name}
               >
                 <Circle
                   className={`size-1.5 shrink-0 mr-1.5 ${
                     isActive
-                      ? 'fill-blue-600 text-blue-600'
-                      : 'fill-blue-400 text-blue-400'
+                      ? 'fill-blue-600 text-blue-600 dark:fill-blue-400 dark:text-blue-400'
+                      : 'fill-blue-400 text-blue-400 dark:fill-blue-500 dark:text-blue-500'
                   }`}
                 />
                 <span
                   className={`text-xs whitespace-nowrap ${
-                    isActive ? 'font-semibold text-gray-900' : 'font-medium text-gray-700'
+                    isActive
+                      ? 'font-semibold text-gray-900 dark:text-gray-100'
+                      : 'font-medium text-gray-700 dark:text-gray-300'
                   }`}
                 >
                   {s.name}
@@ -289,7 +316,7 @@ export function StrategyBar({
                     e.stopPropagation();
                     onRemove?.(s.name);
                   }}
-                  className="ml-2 size-4 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="ml-2 size-4 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="Close strategy"
                 >
                   <X className="size-3" />
@@ -299,11 +326,11 @@ export function StrategyBar({
           })}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0 px-2 pb-1">
+        <div className="flex items-center gap-1 shrink-0 px-2 pb-0.25">
           {!chartHidden && (expanded ? (
             <button
               onClick={() => onCollapsePanel?.()}
-              className="size-7 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+              className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
               title="Collapse strategy panel"
             >
               <ChevronDown className="size-4" />
@@ -314,7 +341,7 @@ export function StrategyBar({
                 setCollapsed(false);
                 onExpandPanel?.();
               }}
-              className="size-7 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded transition-colors"
+              className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
               title="Expand strategy panel"
             >
               <ChevronUp className="size-4" />
@@ -331,8 +358,8 @@ export function StrategyBar({
             }}
             className={`size-7 flex items-center justify-center rounded transition-colors ${
               chartHidden
-                ? 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
-                : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700'
             }`}
             title={chartHidden ? 'Exit fullscreen' : 'Maximize strategy panel (hide chart)'}
           >
@@ -342,7 +369,7 @@ export function StrategyBar({
       </div>
 
       {/* Row 2: view toolbar (Metrics / History / Period / Capital) */}
-      <div className="h-8 flex items-center gap-1 px-2 bg-white border-t border-gray-200">
+      <div className="h-8 flex items-center gap-1 px-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
         {VIEW_BUTTONS.map(({ key, label, Icon }) => {
           if (key === 'period') {
             return (
@@ -353,7 +380,7 @@ export function StrategyBar({
                   // but must NOT switch `activeView`, otherwise the
                   // results panel below would jump away from whatever
                   // the user is currently looking at (metrics/history).
-                  className="h-7 flex items-center gap-1.5 pl-2 pr-1.5 rounded transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  className="h-7 flex items-center gap-1.5 pl-2 pr-1.5 rounded transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
                   title={label}
                 >
                   <Icon className="size-3.5 shrink-0" />
@@ -367,30 +394,30 @@ export function StrategyBar({
                   />
                 </button>
                 {periodOpen && (
-                  <div className="absolute z-50 left-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3 min-w-[260px]">
+                  <div className="absolute z-50 left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-3 min-w-[260px]">
                     <div className="flex flex-col gap-2">
-                      <label className="flex items-center justify-between gap-2 text-xs text-gray-600">
+                      <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <span className="w-14">From</span>
                         <input
                           type="date"
                           value={dateRange[0]}
                           max={dateRange[1]}
                           onChange={(e) =>
-                            setDateRange(([_, end]) => [e.target.value, end])
+                            updateDateRange([e.target.value, dateRange[1]])
                           }
-                          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
                         />
                       </label>
-                      <label className="flex items-center justify-between gap-2 text-xs text-gray-600">
+                      <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
                         <span className="w-14">To</span>
                         <input
                           type="date"
                           value={dateRange[1]}
                           min={dateRange[0]}
                           onChange={(e) =>
-                            setDateRange(([start]) => [start, e.target.value])
+                            updateDateRange([dateRange[0], e.target.value])
                           }
-                          className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
                         />
                       </label>
                     </div>
@@ -402,7 +429,7 @@ export function StrategyBar({
           if (key === 'capital') {
             const commitCapital = () => {
               const parsed = Number(capitalDraft.replace(/[^0-9.]/g, ''));
-              if (!Number.isNaN(parsed) && parsed > 0) setCapital(parsed);
+              if (!Number.isNaN(parsed) && parsed > 0) updateCapital(parsed);
               else setCapitalDraft(String(capital));
             };
             return (
@@ -415,7 +442,7 @@ export function StrategyBar({
                   // Pure config control: toggles the capital popover but
                   // does NOT change `activeView` — Metrics/History alone
                   // decides what is rendered in the results panel.
-                  className="h-7 flex items-center gap-1.5 pl-2 pr-1.5 rounded transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  className="h-7 flex items-center gap-1.5 pl-2 pr-1.5 rounded transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
                   title={label}
                 >
                   <Icon className="size-3.5 shrink-0" />
@@ -429,8 +456,8 @@ export function StrategyBar({
                   />
                 </button>
                 {capitalOpen && (
-                  <div className="absolute z-50 left-0 top-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg p-3 min-w-[220px]">
-                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                  <div className="absolute z-50 left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-3 min-w-[220px]">
+                    <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
                       <span className="w-14">Amount</span>
                       <input
                         type="text"
@@ -444,7 +471,7 @@ export function StrategyBar({
                             setCapitalOpen(false);
                           }
                         }}
-                        className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                        className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
                       />
                     </label>
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -452,13 +479,13 @@ export function StrategyBar({
                         <button
                           key={v}
                           onClick={() => {
-                            setCapital(v);
+                            updateCapital(v);
                             setCapitalDraft(String(v));
                           }}
                           className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${
                             capital === v
-                              ? 'bg-blue-50 border-blue-300 text-blue-700'
-                              : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                              ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                              : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                           }`}
                         >
                           {formatCapital(v)}
@@ -477,8 +504,8 @@ export function StrategyBar({
               onClick={() => handleViewClick(key)}
               className={`size-7 flex items-center justify-center rounded transition-colors ${
                 isActive
-                  ? 'bg-blue-100 text-blue-600'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
               title={label}
             >
@@ -494,7 +521,7 @@ export function StrategyBar({
           type="button"
           onClick={onRunBacktest}
           disabled={!onRunBacktest || running}
-          className="ml-auto h-7 px-3 flex items-center gap-1.5 bg-gray-900 hover:bg-black disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded text-[11px] font-semibold transition-colors"
+          className="ml-auto h-7 px-3 flex items-center gap-1.5 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-200 disabled:bg-gray-400 dark:disabled:bg-gray-500 disabled:cursor-not-allowed text-white dark:text-gray-900 rounded text-[11px] font-semibold transition-colors"
           title="Run backtest"
         >
           <Play className="size-3" />

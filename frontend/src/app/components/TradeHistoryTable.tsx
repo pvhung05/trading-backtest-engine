@@ -136,7 +136,10 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
       byNumber.set(t.tradeNumber, slot);
     }
     const out: TradePair[] = [];
-    const keys = [...byNumber.keys()].sort((a, b) => a - b);
+    // Sort trade numbers so the *newest* trade (largest #) shows up at
+    // the top of the table, matching the TradingView Strategy Tester
+    // layout where the most recent trade is the first row you see.
+    const keys = [...byNumber.keys()].sort((a, b) => b - a);
     for (const k of keys) {
       const slot = byNumber.get(k)!;
       if (slot.entry && slot.exit) {
@@ -221,11 +224,11 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
     return (
       <div
         ref={rootRef}
-        className="flex-1 min-h-0 flex items-center justify-center px-4 py-8 bg-white font-sans"
+        className="flex-1 min-h-0 flex items-center justify-center px-4 py-8 bg-white dark:bg-gray-800 font-sans"
       >
         <div className="text-center">
-          <div className="text-xs text-gray-500">No trade history available.</div>
-          <div className="text-[11px] text-gray-400 mt-1">
+          <div className="text-xs text-gray-500 dark:text-gray-400">No trade history available.</div>
+          <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
             Run a backtest to see every entry/exit here.
           </div>
         </div>
@@ -289,11 +292,11 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
   return (
     <div
       ref={rootRef}
-      className="flex-1 min-h-0 flex flex-col bg-white overflow-hidden font-sans"
+      className="flex-1 min-h-0 flex flex-col bg-white dark:bg-gray-800 overflow-hidden font-sans text-gray-800 dark:text-gray-200"
     >
-      <div className="shrink-0 sticky top-0 z-20 bg-white border-b border-gray-200 shadow-[inset_0_-1px_0_rgba(0,0,0,0.04)]">
+      <div className="shrink-0 sticky top-0 z-20 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-[inset_0_-1px_0_rgba(0,0,0,0.04)]">
         <div
-          className="grid items-center font-medium text-gray-500 tracking-tight transition-[padding,column-gap,font-size] duration-150 ease-out"
+          className="grid items-center font-medium text-gray-500 dark:text-gray-400 tracking-tight transition-[padding,column-gap,font-size] duration-150 ease-out"
           style={{
             gridTemplateColumns: COL_TEMPLATE,
             columnGap: S.colGap,
@@ -317,7 +320,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
 
       <div ref={bodyRef} className="flex-1 min-h-0 overflow-auto app-scrollbar-overlay">
         <div
-          className="text-gray-800 tracking-tight"
+          className="text-gray-800 dark:text-gray-200 tracking-tight"
           style={{ minWidth: 'max-content' }}
         >
           {pairs.map((pair, idx) => {
@@ -360,7 +363,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
               <div
                 key={tradeNumber}
                 className={`relative grid items-start transition-[column-gap] duration-150 ease-out ${
-                  showBottomBorder ? 'border-b border-gray-200' : ''
+                  showBottomBorder ? 'border-b border-gray-200 dark:border-gray-700' : ''
                 }`}
                 style={{ gridTemplateColumns: COL_TEMPLATE, columnGap: S.colGap }}
               >
@@ -373,7 +376,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                   }}
                 >
                   <span
-                    className="font-semibold text-gray-800 tabular-nums"
+                    className="font-semibold text-gray-800 dark:text-gray-200 tabular-nums"
                     style={{ fontSize: F.body }}
                   >
                     {tradeNumber}
@@ -389,7 +392,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                 {/* Exit row (top) */}
                 <div className="flex items-center" style={cellStyle}>
                   <span
-                    className="inline-flex items-center justify-center px-2 py-0.5 rounded font-semibold text-gray-800"
+                    className="inline-flex items-center justify-center px-2 py-0.5 rounded font-semibold text-gray-800 dark:text-gray-200"
                     style={{ minWidth: '56px', fontSize: F.side }}
                   >
                     Exit
@@ -405,11 +408,11 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                   className="flex items-baseline justify-end gap-1 tabular-nums"
                   style={cellStyle}
                 >
-                  <span className="text-gray-800" style={{ fontSize: F.body }}>
+                  <span className="text-gray-800 dark:text-gray-200" style={{ fontSize: F.body }}>
                     {fmtMoney(exit.price)}
                   </span>
                   <span
-                    className="text-gray-400 font-medium"
+                    className="text-gray-400 dark:text-gray-500 font-medium"
                     style={{ fontSize: F.currency }}
                   >
                     USD
@@ -420,13 +423,13 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                   style={cellStyle}
                 >
                   <span
-                    className="font-semibold text-gray-800"
+                    className="font-semibold text-gray-800 dark:text-gray-200"
                     style={{ fontSize: F.body }}
                   >
                     {fmtSize(exit.positionSizeUsd)}
                   </span>
                   <span
-                    className="text-gray-400 font-medium uppercase tracking-wider"
+                    className="text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider"
                     style={{ fontSize: F.sizeSuffix }}
                   >
                     USD
@@ -460,7 +463,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                 {/* Divider between Exit and Entry — spans columns 2 (Type) to 5 (Size). */}
                 <div
                   aria-hidden
-                  className="absolute pointer-events-none border-t border-gray-200"
+                  className="absolute pointer-events-none border-t border-gray-200 dark:border-gray-700"
                   style={{
                     top: '50%',
                     gridColumn: '2 / 6',
@@ -472,7 +475,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                 {/* Entry row (bottom) */}
                 <div className="flex items-center" style={cellStyle}>
                   <span
-                    className="inline-flex items-center justify-center px-2 py-0.5 rounded font-semibold text-gray-800"
+                    className="inline-flex items-center justify-center px-2 py-0.5 rounded font-semibold text-gray-800 dark:text-gray-200"
                     style={{ minWidth: '56px', fontSize: F.side }}
                   >
                     Entry
@@ -488,11 +491,11 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                   className="flex items-baseline justify-end gap-1 tabular-nums"
                   style={cellStyle}
                 >
-                  <span className="text-gray-800" style={{ fontSize: F.body }}>
+                  <span className="text-gray-800 dark:text-gray-200" style={{ fontSize: F.body }}>
                     {fmtMoney(entry.price)}
                   </span>
                   <span
-                    className="text-gray-400 font-medium"
+                    className="text-gray-400 dark:text-gray-500 font-medium"
                     style={{ fontSize: F.currency }}
                   >
                     USD
@@ -503,13 +506,13 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                   style={cellStyle}
                 >
                   <span
-                    className="font-semibold text-gray-800"
+                    className="font-semibold text-gray-800 dark:text-gray-200"
                     style={{ fontSize: F.body }}
                   >
                     {fmtSize(entry.positionSizeUsd)}
                   </span>
                   <span
-                    className="text-gray-400 font-medium uppercase tracking-wider"
+                    className="text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wider"
                     style={{ fontSize: F.sizeSuffix }}
                   >
                     USD

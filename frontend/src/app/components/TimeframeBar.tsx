@@ -11,6 +11,11 @@ interface TimeframeBarProps {
 
 export function TimeframeBar({ value = '1D', onChange }: TimeframeBarProps) {
   const [active, setActive] = useState<Timeframe>(value);
+
+  // Sync with external changes (e.g. on reload the parent restores the saved value).
+  useEffect(() => {
+    setActive(value);
+  }, [value]);
   const [time, setTime] = useState('');
 
   useEffect(() => {
@@ -32,7 +37,7 @@ export function TimeframeBar({ value = '1D', onChange }: TimeframeBarProps) {
   };
 
   return (
-    <div className="h-10 bg-white border-t border-gray-200 px-2 flex items-center justify-between text-xs select-none">
+    <div className="h-10 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-2 flex items-center justify-between text-xs select-none text-gray-700 dark:text-gray-300">
       <div className="flex items-center">
         {TIMEFRAMES.map((tf) => {
           const isActive = active === tf;
@@ -43,22 +48,22 @@ export function TimeframeBar({ value = '1D', onChange }: TimeframeBarProps) {
               className={`px-2.5 h-10 transition-colors ${
                 isActive
                   ? 'text-blue-600'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
             >
               {tf}
             </button>
           );
         })}
-        <div className="w-px h-4 bg-gray-300 mx-1" />
+        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
         <button
-          className="size-10 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+          className="size-10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
           title="Go to date"
         >
           <CalendarClock className="size-4" />
         </button>
       </div>
-      <div className="text-gray-500 font-mono pr-1 tabular-nums">{time} UTC</div>
+      <div className="text-gray-500 dark:text-gray-400 font-mono pr-1 tabular-nums">{time} UTC</div>
     </div>
   );
 }
