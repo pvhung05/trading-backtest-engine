@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.ta4j.core.BarSeries;
 
-import com.trading.apps.business.execution.model.ExecutedTrade;
+import com.trading.apps.execution.model.ExecutedTrade;
 import com.trading.apps.portfolio.model.PortfolioConfig;
 import com.trading.apps.portfolio.model.PortfolioResult;
 

@@ -11,34 +11,114 @@ import { Watchlist } from './components/Watchlist';
 import { TimeframeBar } from './components/TimeframeBar';
 import { StrategyBar } from './components/StrategyBar';
 import { OHLCVProvider } from './components/OHLCVContext';
+import { LoginPage } from './components/LoginPage';
+import { ThemeProvider } from './components/ThemeContext';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { getItem, setItem } from './utils/persistence';
+import { AuthProvider, useAuth } from './utils/auth';
+
+export type PersistedTimeframe = '1D' | '5D' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | '5Y' | 'All';
+
+interface PersistedAppState {
+  selectedIndicators: SelectedIndicator[];
+  selectedStrategies: SelectedStrategy[];
+  activeView: 'metrics' | 'history' | 'period' | 'capital';
+  activeTimeframe: PersistedTimeframe;
+  dateRange: [string, string];
+  capital: number;
+  chartHidden: boolean;
+}
+
+const DEFAULT_APP_STATE: PersistedAppState = {
+  selectedIndicators: [],
+  selectedStrategies: [],
+  activeView: 'metrics',
+  activeTimeframe: '1D',
+  dateRange: ['2011-08-15', '2026-06-29'],
+  capital: 1_000_000,
+  chartHidden: false,
+};
+
+const STORAGE_KEY = 'trading-app-state';
+
+function loadAppState(): PersistedAppState {
+  const saved = getItem<PersistedAppState | null>(STORAGE_KEY, null);
+  if (!saved) return DEFAULT_APP_STATE;
+  return {
+    ...DEFAULT_APP_STATE,
+    ...saved,
+  };
+}
 
 export default function App() {
-  const [selectedIndicators, setSelectedIndicators] = useState<SelectedIndicator[]>([]);
+  return (
+    <ThemeProvider>
+      <AuthProvider>
+        <AppGate />
+      </AuthProvider>
+    </ThemeProvider>
+  );
+}
+
+/**
+ * Auth gate. Pulls the current user out of `AuthContext`; if there's
+ * none, renders the login page *instead of* the trading app. The full
+ * `AppShell` is mounted only when authenticated so all the heavy state
+ * (panels, localStorage hydration, etc.) starts from a clean slate
+ * post-login.
+ */
+function AppGate() {
+  const { user, logout } = useAuth();
+  if (!user) return <LoginPage />;
+  return <AppShell userName={user.name} onLogout={logout} />;
+}
+
+function AppShell({ userName, onLogout }: { userName: string; onLogout: () => void }) {
+  const initial = loadAppState();
+
+  const [selectedIndicators, setSelectedIndicators] = useState<SelectedIndicator[]>(
+    initial.selectedIndicators
+  );
   const [hiddenIndicators, setHiddenIndicators] = useState<Set<string>>(new Set());
   const [allIndicatorsHidden, setAllIndicatorsHidden] = useState(false);
 
-  const [selectedStrategies, setSelectedStrategies] = useState<SelectedStrategy[]>([]);
+  const [selectedStrategies, setSelectedStrategies] = useState<SelectedStrategy[]>(
+    initial.selectedStrategies
+  );
   const [hiddenStrategies, setHiddenStrategies] = useState<Set<string>>(new Set());
   const [allStrategiesHidden, setAllStrategiesHidden] = useState(false);
   const strategyPanelRef = useRef<ImperativePanelHandle>(null);
   const strategyPanelCollapsedRef = useRef(false);
-  // Track whether the user has expanded the strategy panel so the chevron
-  // icon can flip direction. Updates both via button click and manual drag.
   const [strategyExpanded, setStrategyExpanded] = useState(false);
-  // When the user maximizes the strategy panel, hide the chart entirely so
-  // the strategy view occupies the full vertical space.
-  const [chartHidden, setChartHidden] = useState(false);
+  const [chartHidden, setChartHidden] = useState(initial.chartHidden);
   const chartPanelRef = useRef<ImperativePanelHandle | null>(null);
-  // Track active view tab in strategy panel (metrics/history/period/capital).
-  // This state lives here so it's preserved across panel maximize/restore.
-  const [activeView, setActiveView] = useState<'metrics' | 'history' | 'period' | 'capital'>('metrics');
-  // Capture the panel sizes right before the chart is hidden, so we can
-  // restore them faithfully when the user re-opens the chart via the
-  // minimize button (otherwise the chart panel snaps back to its
-  // `defaultSize` and the layout becomes awkward to drag again).
+  const [activeView, setActiveView] = useState<'metrics' | 'history' | 'period' | 'capital'>(
+    initial.activeView
+  );
   const savedChartSizeRef = useRef<number | null>(null);
   const savedStrategySizeRef = useRef<number | null>(null);
+
+  // TimeframeBar state lifted here so it persists across reloads.
+  const [activeTimeframe, setActiveTimeframe] = useState<PersistedTimeframe>(
+    initial.activeTimeframe
+  );
+
+  // StrategyBar internal state lifted here for persistence.
+  const [dateRange, setDateRange] = useState<[string, string]>(initial.dateRange);
+  const [capital, setCapital] = useState<number>(initial.capital);
+
+  // Persist all top-level state to localStorage whenever it changes.
+  useEffect(() => {
+    setItem<PersistedAppState>(STORAGE_KEY, {
+      selectedIndicators,
+      selectedStrategies,
+      activeView,
+      activeTimeframe,
+      dateRange,
+      capital,
+      chartHidden,
+    });
+  }, [selectedIndicators, selectedStrategies, activeView, activeTimeframe, dateRange, capital, chartHidden]);
 
   // Collapse the strategy panel by default until a strategy is added.
   useEffect(() => {
@@ -133,10 +213,12 @@ export default function App() {
 
   return (
     <OHLCVProvider>
-      <div className="size-full flex flex-col bg-gray-50">
+      <div className="size-full flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <TopToolbar
           onSelectIndicator={handleSelectIndicator}
           onSelectStrategy={handleSelectStrategy}
+          userName={userName}
+          onLogout={onLogout}
         />
 
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
@@ -155,7 +237,7 @@ export default function App() {
                        each time we toggle chart visibility — otherwise
                        the old panel's internals linger and the drag
                        direction gets inverted. */
-                    <div key="strategy-standalone" className="h-full flex flex-col bg-white border-t border-gray-200">
+                    <div key="strategy-standalone" className="h-full flex flex-col bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                       <StrategyBar
                             strategies={selectedStrategies.filter(
                               (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
@@ -165,6 +247,10 @@ export default function App() {
                             chartHidden={chartHidden}
                             activeView={activeView}
                             onActiveViewChange={setActiveView}
+                            initialDateRange={dateRange}
+                            initialCapital={capital}
+                            onDateRangeChange={setDateRange}
+                            onCapitalChange={setCapital}
                             onCollapsePanel={() => {
                               strategyPanelRef.current?.resize(10);
                               setStrategyExpanded(false);
@@ -215,7 +301,7 @@ export default function App() {
                         </div>
                       </Panel>
 
-                      <PanelResizeHandle className="h-1 bg-gray-200 hover:bg-blue-400 cursor-row-resize transition-colors" />
+                      <PanelResizeHandle className="h-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-row-resize transition-colors" />
 
                       <Panel
                         ref={strategyPanelRef}
@@ -233,8 +319,13 @@ export default function App() {
                           setStrategyExpanded(size > 30);
                         }}
                       >
-                        <div className="h-full flex flex-col bg-white border-t border-gray-200">
-                          {!chartHidden && <TimeframeBar />}
+                        <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                          {!chartHidden && (
+                        <TimeframeBar
+                          value={activeTimeframe}
+                          onChange={setActiveTimeframe}
+                        />
+                      )}
                           {selectedStrategies.filter(
                             (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
                           ).length > 0 && (
@@ -248,6 +339,10 @@ export default function App() {
                                 chartHidden={chartHidden}
                                 activeView={activeView}
                                 onActiveViewChange={setActiveView}
+                                initialDateRange={dateRange}
+                                initialCapital={capital}
+                                onDateRangeChange={setDateRange}
+                                onCapitalChange={setCapital}
                                 onCollapsePanel={() => {
                                   strategyPanelRef.current?.resize(10);
                                   setStrategyExpanded(false);
@@ -294,7 +389,7 @@ export default function App() {
               </div>
             </Panel>
 
-            <PanelResizeHandle className="w-1 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-colors" />
+            <PanelResizeHandle className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors" />
 
             <Panel defaultSize={25} minSize={0} maxSize={25} collapsible={true}>
               <div className="h-full overflow-y-auto">

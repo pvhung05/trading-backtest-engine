@@ -24,6 +24,7 @@ import {
 import { useState } from 'react';
 import { IntervalDropdown } from './IntervalDropdown';
 import { IndicatorsDialog } from './IndicatorsDialog';
+import { UserMenu } from './UserMenu';
 import { useOHLCV } from './OHLCVContext';
 
 export interface SelectedIndicator {
@@ -54,11 +55,11 @@ export function LeftToolbar() {
   ];
 
   return (
-    <div className="bg-white border-r border-gray-200 flex flex-col items-center py-3 gap-1 w-12">
+    <div className="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col items-center py-3 gap-1 w-12">
       {tools.map((tool, index) => (
         <button
           key={index}
-          className="p-2 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
           title={tool.label}
         >
           <tool.icon className="w-4 h-4" />
@@ -71,9 +72,16 @@ export function LeftToolbar() {
 export function TopToolbar({
   onSelectIndicator,
   onSelectStrategy,
+  userName,
+  onLogout,
 }: {
   onSelectIndicator?: (indicator: SelectedIndicator) => void;
   onSelectStrategy?: (strategy: SelectedStrategy) => void;
+  // Display name of the currently logged-in user. Rendered as a small
+  // pill near the right edge of the toolbar. Optional so the toolbar
+  // remains usable in contexts that don't have an auth context.
+  userName?: string;
+  onLogout?: () => void;
 }) {
   const [interval, setInterval] = useState('1d');
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -83,26 +91,26 @@ export function TopToolbar({
 
   return (
     <>
-    <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between">
+    <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-2 flex items-center justify-between">
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold">
-            ₿
-          </div>
-          <span className="font-semibold">{symbol}</span>
-          <button className="p-1 hover:bg-gray-100 rounded">
-            <Star className="w-4 h-4" />
-          </button>
-          <button className="p-1 hover:bg-gray-100 rounded">
-            <Plus className="w-4 h-4" />
-          </button>
+          {userName ? (
+            <>
+              <UserMenu userName={userName} onLogout={onLogout} />
+              <span className="font-semibold text-gray-900 dark:text-gray-100">{userName}</span>
+            </>
+          ) : (
+            <button className="px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm text-gray-700 dark:text-gray-200">
+              Sign in
+            </button>
+          )}
         </div>
 
         <IntervalDropdown value={interval} onChange={setInterval} />
 
         <button
           onClick={() => setIndicatorsOpen(true)}
-          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm"
+          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm text-gray-700 dark:text-gray-200"
         >
           <BarChart2 className="w-4 h-4" />
           Indicators
@@ -110,7 +118,7 @@ export function TopToolbar({
 
         <button
           onClick={() => setStrategiesOpen(true)}
-          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm"
+          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm text-gray-700 dark:text-gray-200"
         >
           <Wand2 className="w-4 h-4" />
           Strategies
@@ -118,26 +126,27 @@ export function TopToolbar({
 
         <button
           onClick={() => setMyScriptsOpen(true)}
-          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 rounded text-sm"
+          className="flex items-center gap-2 px-3 py-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-sm text-gray-700 dark:text-gray-200"
         >
           <FileCode className="w-4 h-4" />
           My Scripts
         </button>
       </div>
 
-      <div className="flex items-center gap-2">
-        <button className="px-3 py-1 hover:bg-gray-100 rounded text-sm">Unnamed</button>
-        <button className="p-1 hover:bg-gray-100 rounded">
+      <div className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+        <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
           <Settings className="w-4 h-4" />
         </button>
-        <button className="p-1 hover:bg-gray-100 rounded">
+        <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
           <Image className="w-4 h-4" />
         </button>
-        <button className="p-1 hover:bg-gray-100 rounded">
+        <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
           <Camera className="w-4 h-4" />
         </button>
-        <button className="px-4 py-1.5 text-sm hover:bg-gray-100 rounded">Trade</button>
-        <button className="px-4 py-1.5 bg-black text-white rounded text-sm hover:bg-gray-800">
+        <button className="px-4 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+          Trade
+        </button>
+        <button className="px-4 py-1.5 bg-black dark:bg-white text-white dark:text-black rounded text-sm hover:bg-gray-800 dark:hover:bg-gray-200">
           Publish
         </button>
       </div>
@@ -175,38 +184,37 @@ export function ChartHeader() {
 
   const close = parseFloat(data.close);
   const isGreen = !isNaN(close) && close >= 0;
-  const colorClass = isGreen ? 'text-green-600' : 'text-gray-900';
 
   return (
-    <div className="bg-white border-b border-gray-200 px-3 py-1.5 flex items-center gap-4 text-xs select-none overflow-x-auto">
+    <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-4 text-xs select-none overflow-x-auto text-gray-700 dark:text-gray-300">
       {/* Symbol info */}
       <div className="flex items-center gap-1.5 shrink-0">
         <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold">
           ₿
         </div>
-        <span className="font-medium text-gray-900">{symbol}</span>
+        <span className="font-medium text-gray-900 dark:text-gray-100">{symbol}</span>
       </div>
 
       {/* Separator */}
-      <div className="w-px h-4 bg-gray-300 shrink-0" />
+      <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 shrink-0" />
 
       {/* OHLCV */}
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-1">
-          <span className="text-gray-400">O</span>
-          <span className="font-medium text-gray-800 tabular-nums">{fmt(data.open)}</span>
+          <span className="text-gray-400 dark:text-gray-500">O</span>
+          <span className="font-medium text-gray-800 dark:text-gray-200 tabular-nums">{fmt(data.open)}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-gray-400">H</span>
-          <span className="font-medium text-green-600 tabular-nums">{fmt(data.high)}</span>
+          <span className="text-gray-400 dark:text-gray-500">H</span>
+          <span className="font-medium text-green-600 dark:text-green-400 tabular-nums">{fmt(data.high)}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-gray-400">L</span>
-          <span className="font-medium text-red-600 tabular-nums">{fmt(data.low)}</span>
+          <span className="text-gray-400 dark:text-gray-500">L</span>
+          <span className="font-medium text-red-600 dark:text-red-400 tabular-nums">{fmt(data.low)}</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="text-gray-400">C</span>
-          <span className={`font-medium tabular-nums ${colorClass}`}>{fmt(data.close)}</span>
+          <span className="text-gray-400 dark:text-gray-500">C</span>
+          <span className={`font-medium tabular-nums ${isGreen ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'}`}>{fmt(data.close)}</span>
         </div>
       </div>
     </div>

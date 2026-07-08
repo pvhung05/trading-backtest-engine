@@ -4,7 +4,45 @@ import { useOHLCV } from './OHLCVContext';
 import { BTC_USD_DAILY } from '../data/mockOHLCV';
 import { MOCK_TRADES } from '../data/mockTrades';
 import { SelectedIndicator, SelectedStrategy } from './Toolbar';
+import { useTheme } from './ThemeContext';
 import { X, Eye, EyeOff, MoreHorizontal, ChevronUp, ChevronDown, Activity, BarChart2 } from 'lucide-react';
+
+// Palette tokens for the chart surface. lightweight-charts draws into a
+// canvas, so Tailwind's `dark:` variants don't reach it — we have to
+// pass colors explicitly via `applyOptions()`. Keeping all colors in
+// one object (per theme) makes it easy to re-apply when the user
+// toggles between light and dark without re-creating the chart.
+//
+// Tip: keep grid colors *subtle* in both modes — too much contrast
+// makes the candles harder to read.
+type ThemeName = 'light' | 'dark';
+
+interface ChartTheme {
+  background: string;
+  textColor: string;
+  grid: string;
+  border: string;
+  // Crosshair-line color drawn over the canvas via plain DOM divs.
+  crosshairLine: string;
+}
+
+const CHART_THEMES: Record<ThemeName, ChartTheme> = {
+  light: {
+    background: '#ffffff',
+    textColor: '#333333',
+    grid: '#f0f0f0',
+    border: '#e0e0e0',
+    crosshairLine: '#9ca3af',
+  },
+  dark: {
+    // Slightly off-black so it doesn't look like a hole in the page.
+    background: '#1f2937', // gray-800
+    textColor: '#d1d5db', // gray-300
+    grid: '#374151', // gray-700
+    border: '#374151', // gray-700
+    crosshairLine: '#6b7280', // gray-500
+  },
+};
 
 function formatNum(n: number, decimals = 2) {
   return n.toLocaleString('en-US', {
@@ -84,7 +122,7 @@ function OverlayRow({
           return (
             <div
               key={item.name}
-              className="group inline-flex items-center gap-1.5 text-xs text-gray-800"
+              className="group inline-flex items-center gap-1.5 text-xs text-gray-800 dark:text-gray-200"
             >
               <span className={`font-medium ${isHidden ? 'opacity-40' : ''}`}>
                 {item.name}
@@ -92,7 +130,7 @@ function OverlayRow({
               {onToggleVisibility && (
                 <button
                   onClick={() => onToggleVisibility(item.name)}
-                  className="text-gray-500 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
                   title={isHidden ? `Show ${item.name}` : `Hide ${item.name}`}
                 >
                   {isHidden ? (
@@ -103,7 +141,7 @@ function OverlayRow({
                 </button>
               )}
               <button
-                className="text-gray-500 hover:text-gray-800 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 opacity-0 group-hover:opacity-100 transition-opacity"
                 title={`${item.name} settings`}
               >
                 <MoreHorizontal className="size-3.5" />
@@ -111,7 +149,7 @@ function OverlayRow({
               {onRemove && (
                 <button
                   onClick={() => onRemove(item.name)}
-                  className="text-gray-500 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                   title={`Remove ${item.name}`}
                 >
                   <X className="size-3.5" />
@@ -122,7 +160,7 @@ function OverlayRow({
         })}
       <button
         onClick={onToggleCollapse}
-        className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 mt-0.5"
+        className="inline-flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-100 mt-0.5"
         title={collapsed ? `Show ${groupLabel}` : `Hide ${groupLabel}`}
       >
         <span className="opacity-60">{icon}</span>
@@ -175,6 +213,11 @@ export function TradingChart({
   const smaSeriesRef = useRef<ReturnType<ReturnType<typeof createChart>['addLineSeries']> | null>(null);
   const markersRef = useRef<ReturnType<ReturnType<ReturnType<typeof createChart>['addCandlestickSeries']>['setMarkers']> | null>(null);
   const { setData } = useOHLCV();
+  const { isDark } = useTheme();
+  // Keep the resolved palette in a ref so the canvas-color effect can
+  // read it synchronously when the theme toggles.
+  const themeName: ThemeName = isDark ? 'dark' : 'light';
+  const palette = CHART_THEMES[themeName];
 
   const [crosshair, setCrosshair] = useState<{
     x: number;
@@ -229,8 +272,8 @@ export function TradingChart({
 
     const chart = createChart(containerRef.current, {
       layout: {
-        background: { type: ColorType.Solid, color: '#ffffff' },
-        textColor: '#333',
+        background: { type: ColorType.Solid, color: palette.background },
+        textColor: palette.textColor,
         // Hide the small "TradingView" attribution watermark that
         // lightweight-charts paints in the bottom-left corner. We're
         // already running our own UI; the watermark adds visual noise.
@@ -239,17 +282,17 @@ export function TradingChart({
       width: containerRef.current.clientWidth,
       height: containerRef.current.clientHeight,
       grid: {
-        vertLines: { color: '#f0f0f0' },
-        horzLines: { color: '#f0f0f0' },
+        vertLines: { color: palette.grid },
+        horzLines: { color: palette.grid },
       },
       crosshair: {
         mode: CrosshairMode.Hidden,
       },
       rightPriceScale: {
-        borderColor: '#e0e0e0',
+        borderColor: palette.border,
       },
       timeScale: {
-        borderColor: '#e0e0e0',
+        borderColor: palette.border,
         timeVisible: false,
         secondsVisible: false,
       },
@@ -408,6 +451,28 @@ export function TradingChart({
     };
   }, [candles, setData, smaData, tradeMarkers]);
 
+  // Re-paint the chart's surface colors whenever the global theme
+  // toggles. We deliberately *don't* tear down the chart here — that
+  // would force a costly full re-render of every series. Instead,
+  // lightweight-charts lets us swap `layout`, `grid`, and axis
+  // borders via `applyOptions()` on the existing instance.
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+    chart.applyOptions({
+      layout: {
+        background: { type: ColorType.Solid, color: palette.background },
+        textColor: palette.textColor,
+      },
+      grid: {
+        vertLines: { color: palette.grid },
+        horzLines: { color: palette.grid },
+      },
+      rightPriceScale: { borderColor: palette.border },
+      timeScale: { borderColor: palette.border },
+    });
+  }, [palette]);
+
   return (
     <div className="relative w-full h-full">
       <div ref={containerRef} className="w-full h-full" />
@@ -422,7 +487,7 @@ export function TradingChart({
               top: 0,
               bottom: 0,
               width: 1,
-              background: '#9ca3af',
+              background: palette.crosshairLine,
               transform: 'translateX(-0.5px)',
             }}
           />
@@ -434,7 +499,7 @@ export function TradingChart({
               left: 0,
               right: 0,
               height: 1,
-              background: '#9ca3af',
+              background: palette.crosshairLine,
               transform: 'translateY(-0.5px)',
             }}
           />

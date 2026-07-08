@@ -133,23 +133,23 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
 
   return (
     <div
-      className="fixed inset-0 bg-black/30 z-[100] flex items-start justify-center pt-20 px-4"
+      className="fixed inset-0 bg-black/30 dark:bg-black/60 z-[100] flex items-start justify-center pt-20 px-4"
       onClick={onClose}
     >
       <div
         ref={dialogRef}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-lg shadow-2xl w-[820px] max-w-[92vw] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-[820px] max-w-[92vw] flex flex-col overflow-hidden"
         style={{ height: 'min(580px, 80vh)' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
-          <h2 className="text-base font-semibold text-gray-900">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
             {TAB_LABELS[tab]}
           </h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-900"
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
           >
             <X className="size-4" />
           </button>
@@ -158,13 +158,13 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
         {/* Search */}
         <div className="px-5 pt-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-gray-400 dark:text-gray-500" />
             <input
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search"
-              className="w-full pl-10 pr-3 py-2 text-sm bg-white border border-gray-300 rounded focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              className="w-full pl-10 pr-3 py-2 text-sm bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -179,8 +179,8 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
                 onClick={() => setTab(k)}
                 className={`px-4 py-1.5 text-sm rounded-full transition-colors ${
                   active
-                    ? 'bg-gray-900 text-white font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
+                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 font-medium'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
               >
                 {TAB_LABELS[k]}
@@ -193,15 +193,15 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
         <div className="flex-1 overflow-hidden">
           {/* List */}
           <div className="h-full overflow-y-auto px-5 py-3">
-            <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
               Script name
             </div>
             {filtered.length === 0 ? (
-              <div className="py-12 text-center text-sm text-gray-400">
+              <div className="py-12 text-center text-sm text-gray-400 dark:text-gray-500">
                 No results match "{query}"
               </div>
             ) : (
-              <ul className="divide-y divide-gray-100">
+              <ul className="divide-y divide-gray-100 dark:divide-gray-700">
                 {filtered.map((ind) => (
                   <li
                     key={ind.name}
@@ -209,21 +209,21 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
                       onSelect?.(ind);
                       onClose();
                     }}
-                    className="group flex items-center justify-between py-2 cursor-pointer hover:bg-gray-50 -mx-2 px-2 rounded"
+                    className="group flex items-center justify-between py-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/60 -mx-2 px-2 rounded"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-800">{ind.name}</span>
+                      <span className="text-sm text-gray-800 dark:text-gray-200">{ind.name}</span>
                       {ind.badge && (
                         <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded ${
                           ind.badge === 'NEW'
-                            ? 'bg-orange-100 text-orange-600'
-                            : 'bg-purple-100 text-purple-600'
+                            ? 'bg-orange-100 dark:bg-orange-900/50 text-orange-600 dark:text-orange-300'
+                            : 'bg-purple-100 dark:bg-purple-900/50 text-purple-600 dark:text-purple-300'
                         }`}>
                           {ind.badge}
                         </span>
                       )}
                     </div>
-                    <ChevronRight className="size-4 text-gray-300 group-hover:text-gray-500" />
+                    <ChevronRight className="size-4 text-gray-300 dark:text-gray-600 group-hover:text-gray-500 dark:group-hover:text-gray-300" />
                   </li>
                 ))}
               </ul>

@@ -6,7 +6,7 @@ import java.util.Objects;
 import org.springframework.stereotype.Component;
 import org.ta4j.core.BarSeries;
 
-import com.trading.apps.business.execution.model.ExecutedTrade;
+import com.trading.apps.execution.model.ExecutedTrade;
 import com.trading.apps.portfolio.model.PortfolioConfig;
 
 /**

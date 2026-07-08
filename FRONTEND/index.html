@@ -6,6 +6,25 @@
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>Create Trading View Chart Page</title>
       <style>html, body { height: 100%; margin: 0; } #root { height: 100%; }</style>
+      <!--
+        Apply the saved theme *before* React mounts. Without this, the
+        page renders in light mode for one frame, then flips to dark
+        once the React provider runs — that flash is jarring.
+        The key name MUST stay in sync with ThemeContext.STORAGE_KEY.
+      -->
+      <script>
+        (function () {
+          try {
+            var stored = localStorage.getItem('trading-app-theme');
+            if (stored === 'dark') {
+              document.documentElement.classList.add('dark');
+            }
+          } catch (e) {
+            /* localStorage can throw in private modes — fall through
+               to the default (light) theme. */
+          }
+        })();
+      </script>
     </head>
 
     <body>

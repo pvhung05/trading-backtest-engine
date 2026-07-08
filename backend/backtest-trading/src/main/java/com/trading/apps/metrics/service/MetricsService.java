@@ -2,7 +2,7 @@ package com.trading.apps.metrics.service;
 
 import java.util.List;
 
-import com.trading.apps.business.execution.model.ExecutedTrade;
+import com.trading.apps.execution.model.ExecutedTrade;
 import com.trading.apps.metrics.model.MetricsResult;
 import com.trading.apps.portfolio.model.PortfolioResult;
 

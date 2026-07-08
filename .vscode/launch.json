@@ -3,6 +3,13 @@
   "configurations": [
     {
         "type": "java",
+        "name": "RealtimeMarketApplication",
+        "request": "launch",
+        "mainClass": "com.trading.realtime.RealtimeMarketApplication",
+        "projectName": "realtime-market"
+    },
+    {
+        "type": "java",
         "name": "TradingApplication",
         "request": "launch",
         "mainClass": "com.trading.TradingApplication",
