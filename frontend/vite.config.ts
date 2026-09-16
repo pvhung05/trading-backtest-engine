@@ -31,6 +31,10 @@ export default defineConfig({
     },
   },
 
+  server: {
+    host: true, // lang nghe ca IPv4 (127.0.0.1) va IPv6 (::1), khong chi mac dinh localhost
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

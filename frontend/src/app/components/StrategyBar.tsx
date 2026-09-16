@@ -269,10 +269,10 @@ export function StrategyBar({
   return (
     <div className="flex flex-col bg-gray-100 dark:bg-gray-900 select-none h-full min-h-0 text-gray-900 dark:text-gray-100">
       {/* Row 1: strategy tabs */}
-      <div className="h-7 flex items-end">
+      <div className="h-7.5 flex items-end">
         <div
           ref={tabsScrollRef}
-          className="flex items-end min-w-0 flex-1 overflow-x-auto overflow-y-hidden strategy-tabs-scroll"
+          className="flex items-end min-w-0 flex-1 overflow-x-auto overflow-y-hidden strategy-tabs-scroll px-1"
         >
           <div className="w-px h-5 bg-gray-300 dark:bg-gray-600 shrink-0 mb-1.5" />
           {strategies.map((s) => {
@@ -282,14 +282,14 @@ export function StrategyBar({
                 key={s.name}
                 type="button"
                 onClick={() => setActiveStrategyName(s.name)}
-                className={`group flex items-center h-7 px-3 rounded-t-md -mb-px cursor-pointer shrink-0 transition-colors border-t border-l border-r ${
+                className={`group flex items-center h-7 px-3 rounded-t-lg -mb-px cursor-pointer shrink-0 transition-all duration-150 border-t border-l border-r ${
                   isActive
                     ? // Active tab: darker fill + bolder text + bottom border
                       // matches the row-2 background so the tab visually
                       // "connects" to the toolbar below it.
-                      'bg-blue-100 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800 text-gray-900 dark:text-gray-100 hover:bg-blue-100 dark:hover:bg-blue-900/40'
+                      'bg-blue-100 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800 text-gray-900 dark:text-gray-100 hover:bg-blue-100 dark:hover:bg-blue-900/40 font-semibold'
                     : // Inactive tab: subtle, brightens on hover.
-                      'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                      'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'
                 }`}
                 title={s.name}
               >
@@ -300,13 +300,7 @@ export function StrategyBar({
                       : 'fill-blue-400 text-blue-400 dark:fill-blue-500 dark:text-blue-500'
                   }`}
                 />
-                <span
-                  className={`text-xs whitespace-nowrap ${
-                    isActive
-                      ? 'font-semibold text-gray-900 dark:text-gray-100'
-                      : 'font-medium text-gray-700 dark:text-gray-300'
-                  }`}
-                >
+                <span className="text-xs whitespace-nowrap">
                   {s.name}
                 </span>
                 <span
@@ -316,7 +310,7 @@ export function StrategyBar({
                     e.stopPropagation();
                     onRemove?.(s.name);
                   }}
-                  className="ml-2 size-4 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 rounded shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="ml-2 size-4 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/80 dark:hover:bg-gray-600/80 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-150 active:scale-95"
                   title="Close strategy"
                 >
                   <X className="size-3" />
@@ -326,11 +320,11 @@ export function StrategyBar({
           })}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0 px-2 pb-0.25">
+        <div className="flex items-center gap-1 shrink-0 px-2 pb-0.5">
           {!chartHidden && (expanded ? (
             <button
               onClick={() => onCollapsePanel?.()}
-              className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/80 dark:hover:bg-gray-700/80 rounded-lg transition-all duration-150 active:scale-95 cursor-pointer"
               title="Collapse strategy panel"
             >
               <ChevronDown className="size-4" />
@@ -341,7 +335,7 @@ export function StrategyBar({
                 setCollapsed(false);
                 onExpandPanel?.();
               }}
-              className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+              className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/80 dark:hover:bg-gray-700/80 rounded-lg transition-all duration-150 active:scale-95 cursor-pointer"
               title="Expand strategy panel"
             >
               <ChevronUp className="size-4" />
@@ -356,10 +350,10 @@ export function StrategyBar({
               setCollapsed(false);
               onMaximizePanel?.();
             }}
-            className={`size-7 flex items-center justify-center rounded transition-colors ${
+            className={`size-7 flex items-center justify-center rounded-lg transition-all duration-150 active:scale-95 cursor-pointer ${
               chartHidden
                 ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-700'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/80 dark:hover:bg-gray-700/80'
             }`}
             title={chartHidden ? 'Exit fullscreen' : 'Maximize strategy panel (hide chart)'}
           >
@@ -369,22 +363,18 @@ export function StrategyBar({
       </div>
 
       {/* Row 2: view toolbar (Metrics / History / Period / Capital) */}
-      <div className="h-8 flex items-center gap-1 px-2 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+      <div className="h-9 flex items-center gap-1.5 px-2.5 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xs">
         {VIEW_BUTTONS.map(({ key, label, Icon }) => {
           if (key === 'period') {
             return (
               <div key={key} ref={periodRef} className="relative">
                 <button
                   onClick={() => setPeriodOpen((o) => !o)}
-                  // Pure config control: toggles the date-range popover
-                  // but must NOT switch `activeView`, otherwise the
-                  // results panel below would jump away from whatever
-                  // the user is currently looking at (metrics/history).
-                  className="h-7 flex items-center gap-1.5 pl-2 pr-1.5 rounded transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="h-7 flex items-center gap-1.5 px-2.5 rounded-lg transition-all duration-150 active:scale-[0.98] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/70 cursor-pointer font-medium"
                   title={label}
                 >
-                  <Icon className="size-3.5 shrink-0" />
-                  <span className="text-[11px] font-medium whitespace-nowrap tabular-nums">
+                  <Icon className="size-3.5 shrink-0 text-blue-500" />
+                  <span className="text-[11px] whitespace-nowrap tabular-nums">
                     {formatDate(dateRange[0])} — {formatDate(dateRange[1])}
                   </span>
                   <ChevronDown
@@ -394,10 +384,10 @@ export function StrategyBar({
                   />
                 </button>
                 {periodOpen && (
-                  <div className="absolute z-50 left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-3 min-w-[260px]">
-                    <div className="flex flex-col gap-2">
+                  <div className="absolute z-50 left-0 top-full mt-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200/80 dark:border-gray-700/80 rounded-xl shadow-xl p-3.5 min-w-[270px]">
+                    <div className="flex flex-col gap-2.5">
                       <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <span className="w-14">From</span>
+                        <span className="w-14 font-medium">From</span>
                         <input
                           type="date"
                           value={dateRange[0]}
@@ -405,11 +395,11 @@ export function StrategyBar({
                           onChange={(e) =>
                             updateDateRange([e.target.value, dateRange[1]])
                           }
-                          className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
+                          className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 shadow-2xs"
                         />
                       </label>
                       <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <span className="w-14">To</span>
+                        <span className="w-14 font-medium">To</span>
                         <input
                           type="date"
                           value={dateRange[1]}
@@ -417,7 +407,7 @@ export function StrategyBar({
                           onChange={(e) =>
                             updateDateRange([dateRange[0], e.target.value])
                           }
-                          className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
+                          className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 shadow-2xs"
                         />
                       </label>
                     </div>
@@ -439,14 +429,11 @@ export function StrategyBar({
                     setCapitalOpen((o) => !o);
                     if (!capitalOpen) setCapitalDraft(String(capital));
                   }}
-                  // Pure config control: toggles the capital popover but
-                  // does NOT change `activeView` — Metrics/History alone
-                  // decides what is rendered in the results panel.
-                  className="h-7 flex items-center gap-1.5 pl-2 pr-1.5 rounded transition-colors text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700"
+                  className="h-7 flex items-center gap-1.5 px-2.5 rounded-lg transition-all duration-150 active:scale-[0.98] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/70 cursor-pointer font-medium"
                   title={label}
                 >
-                  <Icon className="size-3.5 shrink-0" />
-                  <span className="text-[11px] font-medium whitespace-nowrap tabular-nums">
+                  <Icon className="size-3.5 shrink-0 text-emerald-500" />
+                  <span className="text-[11px] whitespace-nowrap tabular-nums">
                     {formatCapital(capital)} USD
                   </span>
                   <ChevronDown
@@ -456,9 +443,9 @@ export function StrategyBar({
                   />
                 </button>
                 {capitalOpen && (
-                  <div className="absolute z-50 left-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg p-3 min-w-[220px]">
+                  <div className="absolute z-50 left-0 top-full mt-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200/80 dark:border-gray-700/80 rounded-xl shadow-xl p-3.5 min-w-[240px]">
                     <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                      <span className="w-14">Amount</span>
+                      <span className="w-14 font-medium">Amount</span>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -471,10 +458,10 @@ export function StrategyBar({
                             setCapitalOpen(false);
                           }
                         }}
-                        className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500"
+                        className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 shadow-2xs"
                       />
                     </label>
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {PRESETS.map((v) => (
                         <button
                           key={v}
@@ -482,9 +469,9 @@ export function StrategyBar({
                             updateCapital(v);
                             setCapitalDraft(String(v));
                           }}
-                          className={`text-[11px] px-2 py-0.5 rounded border transition-colors ${
+                          className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all duration-150 active:scale-95 cursor-pointer font-medium ${
                             capital === v
-                              ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300'
+                              ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 shadow-2xs'
                               : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
                           }`}
                         >
@@ -502,10 +489,10 @@ export function StrategyBar({
             <button
               key={key}
               onClick={() => handleViewClick(key)}
-              className={`size-7 flex items-center justify-center rounded transition-colors ${
+              className={`size-7 flex items-center justify-center rounded-lg transition-all duration-150 active:scale-95 cursor-pointer ${
                 isActive
-                  ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-300'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 font-semibold shadow-2xs'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/70'
               }`}
               title={label}
             >
@@ -513,18 +500,15 @@ export function StrategyBar({
             </button>
           );
         })}
-        {/* Black "Run" button — mirrors a typical "Publish"-style CTA
-            on the right side of the toolbar. Just passing `onRunBacktest`
-            is enough to enable it; `running` is an optional hint that
-            greys the button out while a backtest is in flight. */}
+        {/* Black "Run" button — sleek modern CTA */}
         <button
           type="button"
           onClick={onRunBacktest}
           disabled={!onRunBacktest || running}
-          className="ml-auto h-7 px-3 flex items-center gap-1.5 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-200 disabled:bg-gray-400 dark:disabled:bg-gray-500 disabled:cursor-not-allowed text-white dark:text-gray-900 rounded text-[11px] font-semibold transition-colors"
+          className="ml-auto h-7 px-3.5 flex items-center gap-1.5 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-100 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white dark:text-gray-900 rounded-lg text-[11px] font-semibold shadow-2xs hover:shadow transition-all duration-150 active:scale-[0.98] cursor-pointer"
           title="Run backtest"
         >
-          <Play className="size-3" />
+          <Play className="size-3 fill-current" />
           <span>{running ? 'Running…' : 'Run'}</span>
         </button>
       </div>

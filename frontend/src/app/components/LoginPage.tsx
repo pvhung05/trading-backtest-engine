@@ -78,22 +78,22 @@ export function LoginPage() {
       <div className="w-full max-w-md px-4">
         {/* Brand mark — mirrors the top-left of the trading app so the
             handoff feels continuous rather than a totally separate site. */}
-        <div className="flex items-center justify-center gap-2 mb-6">
-          <div className="size-10 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
+        <div className="flex items-center justify-center gap-3 mb-6">
+          <div className="size-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md">
             <TrendingUp className="size-5 text-white" />
           </div>
           <div className="leading-tight">
-            <div className="text-lg font-semibold text-gray-900">Backtest Engine</div>
-            <div className="text-xs text-gray-500">Trade smarter, paper first</div>
+            <div className="text-xl font-bold text-gray-900 dark:text-gray-100">Backtest Engine</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">Trade smarter, paper first</div>
           </div>
         </div>
 
-        <Card className="shadow-lg border-gray-200">
+        <Card className="shadow-xl border-gray-200/80 dark:border-gray-700/80 rounded-2xl backdrop-blur-sm">
           <CardHeader className="pb-4">
-            <CardTitle className="text-xl text-gray-900">
+            <CardTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </CardTitle>
-            <CardDescription className="text-sm text-gray-500">
+            <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
               {mode === 'login'
                 ? 'Sign in to access your backtest workspace.'
                 : 'Set up an account to start running backtests.'}
@@ -101,18 +101,15 @@ export function LoginPage() {
           </CardHeader>
 
           <CardContent>
-            {/* Tab switcher. We use plain buttons styled as a segmented
-                control instead of a heavier Tabs component — the form
-                is small and the visual ties better with the inputs
-                below. */}
-            <div className="grid grid-cols-2 p-1 bg-gray-100 rounded-md mb-5 text-sm">
+            {/* Tab switcher. Styled as a modern segmented control. */}
+            <div className="grid grid-cols-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl mb-5 text-sm">
               <button
                 type="button"
                 onClick={() => switchMode('login')}
-                className={`flex items-center justify-center gap-1.5 h-8 rounded transition-colors ${
+                className={`flex items-center justify-center gap-1.5 h-8 rounded-lg transition-all duration-150 cursor-pointer ${
                   mode === 'login'
-                    ? 'bg-white text-gray-900 shadow-sm font-medium'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'
                 }`}
               >
                 <LogIn className="size-3.5" />
@@ -121,10 +118,10 @@ export function LoginPage() {
               <button
                 type="button"
                 onClick={() => switchMode('register')}
-                className={`flex items-center justify-center gap-1.5 h-8 rounded transition-colors ${
+                className={`flex items-center justify-center gap-1.5 h-8 rounded-lg transition-all duration-150 cursor-pointer ${
                   mode === 'register'
-                    ? 'bg-white text-gray-900 shadow-sm font-medium'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-xs font-semibold'
+                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium'
                 }`}
               >
                 <UserPlus className="size-3.5" />

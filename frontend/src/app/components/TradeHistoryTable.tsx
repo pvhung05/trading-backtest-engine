@@ -382,8 +382,11 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                     {tradeNumber}
                   </span>
                   <span
-                    className="font-medium lowercase tracking-tight"
-                    style={{ color: sideColor, fontSize: F.side }}
+                    className={`inline-flex items-center px-1.5 py-0.5 rounded-md font-bold text-[11px] uppercase tracking-wider ${
+                      type === 'Long'
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40'
+                        : 'bg-red-50 dark:bg-red-950/50 text-red-600 dark:text-red-400 border border-red-200/50 dark:border-red-800/40'
+                    }`}
                   >
                     {type === 'Long' ? 'long' : 'short'}
                   </span>
@@ -392,7 +395,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                 {/* Exit row (top) */}
                 <div className="flex items-center" style={cellStyle}>
                   <span
-                    className="inline-flex items-center justify-center px-2 py-0.5 rounded font-semibold text-gray-800 dark:text-gray-200"
+                    className="inline-flex items-center justify-center px-2 py-0.5 rounded-md font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/70 border border-gray-200/60 dark:border-gray-600/50 shadow-2xs"
                     style={{ minWidth: '56px', fontSize: F.side }}
                   >
                     Exit
@@ -475,7 +478,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
                 {/* Entry row (bottom) */}
                 <div className="flex items-center" style={cellStyle}>
                   <span
-                    className="inline-flex items-center justify-center px-2 py-0.5 rounded font-semibold text-gray-800 dark:text-gray-200"
+                    className="inline-flex items-center justify-center px-2 py-0.5 rounded-md font-semibold text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700/70 border border-gray-200/60 dark:border-gray-600/50 shadow-2xs"
                     style={{ minWidth: '56px', fontSize: F.side }}
                   >
                     Entry

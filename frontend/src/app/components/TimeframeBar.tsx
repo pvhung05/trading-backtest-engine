@@ -37,33 +37,33 @@ export function TimeframeBar({ value = '1D', onChange }: TimeframeBarProps) {
   };
 
   return (
-    <div className="h-10 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-2 flex items-center justify-between text-xs select-none text-gray-700 dark:text-gray-300">
-      <div className="flex items-center">
+    <div className="h-9 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-2.5 flex items-center justify-between text-xs select-none text-gray-700 dark:text-gray-300 shadow-2xs">
+      <div className="flex items-center gap-0.5">
         {TIMEFRAMES.map((tf) => {
           const isActive = active === tf;
           return (
             <button
               key={tf}
               onClick={() => handleClick(tf)}
-              className={`px-2.5 h-10 transition-colors ${
+              className={`px-2.5 py-1 rounded-lg text-xs transition-all duration-150 active:scale-95 cursor-pointer ${
                 isActive
-                  ? 'text-blue-600'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 font-semibold shadow-2xs'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/60 font-medium'
               }`}
             >
               {tf}
             </button>
           );
         })}
-        <div className="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1" />
+        <div className="w-px h-3.5 bg-gray-200 dark:bg-gray-700 mx-1" />
         <button
-          className="size-10 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+          className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/60 rounded-lg transition-all duration-150 active:scale-95 cursor-pointer"
           title="Go to date"
         >
-          <CalendarClock className="size-4" />
+          <CalendarClock className="size-3.5" />
         </button>
       </div>
-      <div className="text-gray-500 dark:text-gray-400 font-mono pr-1 tabular-nums">{time} UTC</div>
+      <div className="text-gray-400 dark:text-gray-500 font-mono text-[11px] pr-1 tabular-nums font-medium">{time} UTC</div>
     </div>
   );
 }
