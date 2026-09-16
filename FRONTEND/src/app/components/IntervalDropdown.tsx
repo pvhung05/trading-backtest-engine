@@ -65,15 +65,15 @@ export function IntervalDropdown({ value, onChange }: IntervalDropdownProps) {
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="px-3 py-1 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 rounded text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+        className="px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700/80 rounded-lg text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-all duration-150 active:scale-[0.98] cursor-pointer"
       >
         {value}
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden">
+        <div className="absolute top-full left-0 mt-1.5 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-200/80 dark:border-gray-700/80 z-50 overflow-hidden">
           {/* Search */}
-          <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+          <div className="p-2.5 border-b border-gray-100 dark:border-gray-700/80">
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-gray-400 dark:text-gray-500" />
               <input
@@ -81,21 +81,21 @@ export function IntervalDropdown({ value, onChange }: IntervalDropdownProps) {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search intervals"
-                className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-gray-600 transition-colors"
+                className="w-full pl-8 pr-3 py-1.5 text-sm bg-gray-50 dark:bg-gray-700/60 border border-gray-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:bg-white dark:focus:bg-gray-700 transition-colors"
               />
             </div>
           </div>
 
           {/* List */}
-          <div className="max-h-80 overflow-y-auto py-1">
+          <div className="max-h-80 overflow-y-auto py-1.5 px-1">
             {Object.keys(grouped).length === 0 && (
               <div className="px-4 py-6 text-center text-xs text-gray-400 dark:text-gray-500">
                 No results
               </div>
             )}
             {Object.entries(grouped).map(([group, items]) => (
-              <div key={group}>
-                <div className="px-3 pt-2.5 pb-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+              <div key={group} className="mb-1">
+                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   {group}
                 </div>
                 {items.map((opt) => {
@@ -104,10 +104,10 @@ export function IntervalDropdown({ value, onChange }: IntervalDropdownProps) {
                     <button
                       key={opt.value}
                       onClick={() => select(opt.value)}
-                      className={`w-full px-3 py-1.5 flex items-center justify-between text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                      className={`w-full px-3 py-1.5 my-0.5 rounded-lg flex items-center justify-between text-sm transition-all duration-150 cursor-pointer ${
                         isActive
-                          ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
-                          : 'text-gray-700 dark:text-gray-300'
+                          ? 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/70'
                       }`}
                     >
                       <span>{opt.label}</span>
