@@ -77,21 +77,30 @@ public class WatchlistCache {
 		return cache.values();
 	}
 
+	public static final java.util.Set<String> HOT_SYMBOLS = java.util.Set.of(
+			"BTCUSDT",
+			"ETHUSDT",
+			"BNBUSDT",
+			"SOLUSDT",
+			"XRPUSDT",
+			"DOGEUSDT"
+	);
+
 	/**
-	 * Returns all tickers sorted by quote volume (descending).
+	 * Returns all tickers sorted by quote volume (descending), filtered to hot coins.
 	 * Useful for displaying top trading pairs.
 	 *
 	 * @return sorted collection of market tickers
 	 */
 	public Collection<MarketTicker> getTopByVolume() {
 		return cache.values().stream()
-				.filter(t -> t.getQuoteVolume() != null)
+				.filter(t -> t.getSymbol() != null && HOT_SYMBOLS.contains(t.getSymbol().toUpperCase()))
 				.sorted((a, b) -> {
 					try {
 						double volA = Double.parseDouble(a.getQuoteVolume());
 						double volB = Double.parseDouble(b.getQuoteVolume());
 						return Double.compare(volB, volA);
-					} catch (NumberFormatException e) {
+					} catch (Exception e) {
 						return 0;
 					}
 				})

@@ -71,10 +71,15 @@ public class BinanceWebSocketManager {
 	private volatile boolean isTickerStreamActive = false;
 
 	public BinanceWebSocketManager(ObjectMapper objectMapper) {
-		this.webSocketClient = new StandardWebSocketClient();
+		jakarta.websocket.WebSocketContainer container = jakarta.websocket.ContainerProvider.getWebSocketContainer();
+		container.setDefaultMaxTextMessageBufferSize(10 * 1024 * 1024);
+		container.setDefaultMaxBinaryMessageBufferSize(10 * 1024 * 1024);
+		container.setDefaultMaxSessionIdleTimeout(60000);
+		StandardWebSocketClient client = new StandardWebSocketClient(container);
+		this.webSocketClient = client;
 		this.objectMapper = objectMapper;
 		this.taskScheduler = buildTaskScheduler();
-		log.info("Binance WebSocket Manager initialized");
+		log.info("Binance WebSocket Manager initialized with 10MB container buffer");
 	}
 
 	private static TaskScheduler buildTaskScheduler() {
@@ -165,6 +170,8 @@ public class BinanceWebSocketManager {
 		return new TextWebSocketHandler() {
 			@Override
 			public void afterConnectionEstablished(WebSocketSession session) {
+				session.setTextMessageSizeLimit(10 * 1024 * 1024);
+				session.setBinaryMessageSizeLimit(10 * 1024 * 1024);
 				log.info("WebSocket connected: {} - Session ID: {}", streamKey, session.getId());
 				reconnectAttempt.set(0);
 				if ("!ticker@arr".equals(streamKey)) {
@@ -230,20 +237,34 @@ public class BinanceWebSocketManager {
 			}
 		} else if (payload.startsWith("[")) {
 			try {
-				objectMapper.readValue(payload, List.class).forEach(item -> {
-					try {
-						String itemStr = objectMapper.writeValueAsString(item);
-						if (itemStr.contains("\"e\":\"24hrTicker\"")) {
-							processTickerMessage(itemStr);
-						}
-					} catch (Exception e) {
-						log.debug("Error processing array item for {}: {}", streamKey, e.getMessage());
+				List<BinanceTickerStreamMessage> list = objectMapper.readValue(payload,
+						new com.fasterxml.jackson.core.type.TypeReference<List<BinanceTickerStreamMessage>>() {});
+				for (BinanceTickerStreamMessage tickerMsg : list) {
+					if (tickerMsg != null && tickerMsg.getSymbol() != null) {
+						MarketTicker ticker = toMarketTicker(tickerMsg);
+						broadcastToStreamListeners("!ticker@arr", l -> l.onTickerUpdate(ticker));
 					}
-				});
+				}
 			} catch (Exception e) {
 				log.debug("Error parsing array payload for {}: {}", streamKey, e.getMessage());
 			}
 		}
+	}
+
+	private MarketTicker toMarketTicker(BinanceTickerStreamMessage tickerMsg) {
+		return MarketTicker.builder()
+				.symbol(tickerMsg.getSymbol())
+				.lastPrice(tickerMsg.getLastPrice())
+				.priceChange(tickerMsg.getPriceChange())
+				.priceChangePercent(tickerMsg.getPriceChangePercent())
+				.highPrice(tickerMsg.getHighPrice())
+				.lowPrice(tickerMsg.getLowPrice())
+				.volume(tickerMsg.getVolume())
+				.quoteVolume(tickerMsg.getQuoteVolume())
+				.openTime(tickerMsg.getOpenTime())
+				.closeTime(tickerMsg.getCloseTime())
+				.count(tickerMsg.getTotalTrades())
+				.build();
 	}
 
 	private void processTickerMessage(String payload) {
@@ -263,21 +284,10 @@ public class BinanceWebSocketManager {
 				return;
 			}
 
-			MarketTicker ticker = MarketTicker.builder()
-					.symbol(tickerMsg.getSymbol())
-					.lastPrice(tickerMsg.getLastPrice())
-					.priceChange(tickerMsg.getPriceChange())
-					.priceChangePercent(tickerMsg.getPriceChangePercent())
-					.highPrice(tickerMsg.getHighPrice())
-					.lowPrice(tickerMsg.getLowPrice())
-					.volume(tickerMsg.getVolume())
-					.quoteVolume(tickerMsg.getQuoteVolume())
-					.openTime(tickerMsg.getOpenTime())
-					.closeTime(tickerMsg.getCloseTime())
-					.count(tickerMsg.getTotalTrades())
-					.build();
-
-			broadcastToStreamListeners("!ticker@arr", l -> l.onTickerUpdate(ticker));
+			if (tickerMsg != null && tickerMsg.getSymbol() != null) {
+				MarketTicker ticker = toMarketTicker(tickerMsg);
+				broadcastToStreamListeners("!ticker@arr", l -> l.onTickerUpdate(ticker));
+			}
 		} catch (Exception e) {
 			log.error("Error parsing ticker message: {}", e.getMessage());
 		}

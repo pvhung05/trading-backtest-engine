@@ -25,7 +25,8 @@ public class WebSocketBroadcastServiceImpl implements WebSocketBroadcastService 
 			return;
 		}
 		try {
-			messagingTemplate.convertAndSend("/topic/watchlist", event);
+			// Broadcast to specific symbol topic (e.g. /topic/ticker/BTCUSDT)
+			messagingTemplate.convertAndSend("/topic/ticker/" + event.getSymbol().toUpperCase(), event);
 			log.trace("Broadcasted ticker update for {}", event.getSymbol());
 		} catch (Exception e) {
 			log.error("Failed to broadcast ticker update for {}: {}", event.getSymbol(), e.getMessage());

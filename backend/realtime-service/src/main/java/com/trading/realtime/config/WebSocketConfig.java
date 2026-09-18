@@ -39,9 +39,21 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	 */
 	@Override
 	public void registerStompEndpoints(StompEndpointRegistry registry) {
+		// Pure WebSocket for raw WebSocket clients, Postman WS, and Spring Cloud Gateway proxying
+		registry.addEndpoint("/ws/market")
+				.setAllowedOriginPatterns("*");
+
+		// SockJS fallback for browser clients using SockJS emulation
 		registry.addEndpoint("/ws/market")
 				.setAllowedOriginPatterns("*")
 				.withSockJS();
-		log.info("WebSocket STOMP endpoint registered: /ws/market");
+		log.info("WebSocket STOMP endpoints registered: /ws/market (Raw WS & SockJS)");
+	}
+
+	@Override
+	public void configureWebSocketTransport(org.springframework.web.socket.config.annotation.WebSocketTransportRegistration registry) {
+		registry.setMessageSizeLimit(10 * 1024 * 1024);
+		registry.setSendBufferSizeLimit(20 * 1024 * 1024);
+		registry.setSendTimeLimit(20000);
 	}
 }

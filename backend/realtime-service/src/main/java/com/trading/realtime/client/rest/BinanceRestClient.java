@@ -148,14 +148,22 @@ public class BinanceRestClient {
 		log.debug("Fetching klines for {} from {} to {}", symbol, startTime, endTime);
 		try {
 			List<?> response = webClient.get()
-					.uri(uriBuilder -> uriBuilder
-							.path("/api/v3/klines")
-							.queryParam("symbol", symbol)
-							.queryParam("interval", interval)
-							.queryParam("startTime", startTime)
-							.queryParam("endTime", endTime)
-							.queryParam("limit", limit)
-							.build())
+					.uri(uriBuilder -> {
+						var builder = uriBuilder
+								.path("/api/v3/klines")
+								.queryParam("symbol", symbol)
+								.queryParam("interval", interval);
+						if (startTime != null) {
+							builder.queryParam("startTime", startTime);
+						}
+						if (endTime != null) {
+							builder.queryParam("endTime", endTime);
+						}
+						if (limit != null && limit > 0) {
+							builder.queryParam("limit", limit);
+						}
+						return builder.build();
+					})
 					.retrieve()
 					.bodyToMono(List.class)
 					.block();

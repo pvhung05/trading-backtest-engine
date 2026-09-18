@@ -24,6 +24,10 @@ public class Kline {
 	private String takerBuyQuoteVolume;
 	private Boolean isClosed;
 
+	public boolean isClosed() {
+		return Boolean.TRUE.equals(isClosed);
+	}
+
 	public boolean getIsClosed() {
 		return Boolean.TRUE.equals(isClosed);
 	}

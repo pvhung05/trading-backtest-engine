@@ -18,6 +18,7 @@ import com.trading.realtime.model.Kline;
 import com.trading.realtime.model.MarketTicker;
 import com.trading.realtime.model.SymbolInfo;
 import com.trading.realtime.service.MarketDataService;
+import com.trading.realtime.service.RedisKlineCacheService;
 import com.trading.realtime.service.WebSocketBroadcastService;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -47,6 +48,7 @@ public class MarketDataServiceImpl implements MarketDataService, BinanceWebSocke
 	private final ChartSubscriptionCache chartSubscriptionCache;
 	private final WebSocketBroadcastService broadcastService;
 	private final MarketDataMapper mapper;
+	private final RedisKlineCacheService redisKlineCacheService;
 
 	/**
 	 * Initializes the service on application startup.
@@ -192,18 +194,57 @@ public class MarketDataServiceImpl implements MarketDataService, BinanceWebSocke
 
 	@Override
 	public List<Kline> fetchKlines(String symbol, String interval, Integer limit, Long startTime, Long endTime) {
-		List<Kline> klines;
+		int targetLimit = (limit != null && limit > 0) ? limit : 300;
+
+		// 1. Check Redis cache first
+		List<Kline> cachedKlines = redisKlineCacheService.getKlines(symbol, interval, startTime, endTime, targetLimit);
+		if (!cachedKlines.isEmpty() && (cachedKlines.size() >= targetLimit || (startTime != null && endTime != null))) {
+			log.debug("Found {} klines in Redis cache for {} {}", cachedKlines.size(), symbol, interval);
+			return cachedKlines;
+		}
+
+		// 2. Fetch from Binance REST API (multi-batch loop if both startTime and endTime provided)
+		List<Kline> klines = new java.util.ArrayList<>();
 		if (startTime != null && endTime != null) {
-			klines = binanceRestClient.getKlines(symbol, interval, startTime, endTime, limit)
+			long curStart = startTime;
+			int iterations = 0;
+			int maxIterations = 30; // Up to 30,000 candles safety limit
+			while (curStart < endTime && iterations < maxIterations) {
+				iterations++;
+				List<Kline> batch = binanceRestClient.getKlines(symbol, interval, curStart, endTime, 1000)
+						.stream()
+						.map(mapper::toKline)
+						.toList();
+				if (batch.isEmpty()) {
+					break;
+				}
+				klines.addAll(batch);
+				Kline last = batch.get(batch.size() - 1);
+				if (last.getOpenTime() <= curStart) {
+					break;
+				}
+				curStart = last.getOpenTime() + 1;
+				if (batch.size() < 1000) {
+					break;
+				}
+			}
+		} else if (startTime != null || endTime != null) {
+			klines = binanceRestClient.getKlines(symbol, interval, startTime, endTime, targetLimit)
 					.stream()
 					.map(mapper::toKline)
 					.toList();
 		} else {
-			klines = binanceRestClient.getKlines(symbol, interval, limit)
+			klines = binanceRestClient.getKlines(symbol, interval, targetLimit)
 					.stream()
 					.map(mapper::toKline)
 					.toList();
 		}
+
+		// 3. Cache to Redis with 10-minute sliding TTL
+		if (!klines.isEmpty()) {
+			redisKlineCacheService.saveKlines(symbol, interval, klines);
+		}
+
 		return klines;
 	}
 
@@ -211,10 +252,8 @@ public class MarketDataServiceImpl implements MarketDataService, BinanceWebSocke
 	public ChartSubscription subscribeToChart(String symbol, String interval, String sessionId) {
 		ChartSubscription subscription = chartSubscriptionCache.subscribe(symbol, interval, sessionId);
 
-		if (subscription.getSubscriberCount() == 1) {
-			webSocketManager.subscribeKline(symbol, interval, this);
-			log.info("Created new kline subscription for {} {}", symbol, interval);
-		}
+		webSocketManager.subscribeKline(symbol, interval, this);
+		log.info("Ensured kline subscription for {} {} (subscribers: {})", symbol, interval, subscription.getSubscriberCount());
 
 		return subscription;
 	}
@@ -244,8 +283,10 @@ public class MarketDataServiceImpl implements MarketDataService, BinanceWebSocke
 			return;
 		}
 		watchlistCache.update(ticker);
-		RealtimeTickerEvent event = mapper.toRealtimeTickerEvent(ticker);
-		broadcastService.broadcastTickerUpdate(event);
+		if (WatchlistCache.HOT_SYMBOLS.contains(ticker.getSymbol().toUpperCase())) {
+			RealtimeTickerEvent event = mapper.toRealtimeTickerEvent(ticker);
+			broadcastService.broadcastTickerUpdate(event);
+		}
 	}
 
 	@Override
@@ -254,8 +295,14 @@ public class MarketDataServiceImpl implements MarketDataService, BinanceWebSocke
 			return;
 		}
 		chartSubscriptionCache.updateCandle(symbol, interval, kline);
-		RealtimeKlineEvent event = mapper.toRealtimeKlineEvent(symbol, interval, kline);
-		broadcastService.broadcastKlineUpdate(event);
+		redisKlineCacheService.saveKline(symbol, interval, kline);
+
+		// CHỈ GỬI ĐÚNG 1 LẦN KHI HẾT 1 PHÚT (1m -> 1 phút/lần, 5m -> 5 phút/lần)
+		if (kline.isClosed()) {
+			RealtimeKlineEvent event = mapper.toRealtimeKlineEvent(symbol, interval, kline);
+			broadcastService.broadcastKlineUpdate(event);
+			log.info("🔔 [ĐÃ HẾT {}] Gửi nến đóng hoàn chỉnh: {} (Giá đóng: {})", interval, symbol, kline.getClose());
+		}
 	}
 
 	@Override
