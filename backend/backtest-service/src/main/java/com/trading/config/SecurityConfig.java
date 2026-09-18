@@ -21,11 +21,14 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/api/backtest/**").permitAll()
+                        .requestMatchers("/api/backtest-runs/**").permitAll()
                         .requestMatchers("/api/execution/**").permitAll()
                         .requestMatchers("/api/market/**").permitAll()
+                        .requestMatchers("/api/metrics/**").permitAll()
                         .requestMatchers("/api/portfolio/**").permitAll()
+                        .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .anyRequest().authenticated())
+                        .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

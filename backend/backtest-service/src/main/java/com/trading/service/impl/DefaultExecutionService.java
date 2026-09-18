@@ -63,7 +63,9 @@ public class DefaultExecutionService implements ExecutionService {
 		Objects.requireNonNull(series, "series cannot be null");
 		Objects.requireNonNull(config, "config cannot be null");
 
-		List<TradeExecution> tradeExecutions = tradingRecordMapper.toTradeExecutions(tradingRecord, series, startTime);
+		List<TradeExecution> tradeExecutions = startTime != null
+				? tradingRecordMapper.toTradeExecutions(tradingRecord, series, startTime)
+				: tradingRecordMapper.toTradeExecutions(tradingRecord, series);
 		List<ExecutedTrade> executedTrades = new ArrayList<>(tradeExecutions.size());
 
 		double runningCapital = capital;

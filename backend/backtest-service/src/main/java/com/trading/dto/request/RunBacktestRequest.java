@@ -1,12 +1,12 @@
 package com.trading.dto.request;
 
 import java.time.Instant;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 
 public record RunBacktestRequest(
         @NotNull String symbol,
@@ -14,23 +14,35 @@ public record RunBacktestRequest(
         @NotNull Instant startTime,
         Instant endTime,
         @NotNull String strategyType,
-        @NotNull StrategyParams strategyParams,
+        @NotNull Map<String, Object> strategyParams,
         @JsonProperty("initialCapital")
-        @NotNull @DecimalMin("0.0") double initialCapital,
+        @NotNull @DecimalMin("0.0") Double initialCapital,
         @JsonProperty("commissionRate")
-        double commissionRate,
+        Double commissionRate,
         @JsonProperty("slippageRate")
-        double slippageRate,
+        Double slippageRate,
         @JsonProperty("positionSizePercent")
-        double positionSizePercent
+        Double positionSizePercent
 ) {
 
     public Instant getEndTimeOrNow() {
         return endTime != null ? endTime : Instant.now();
     }
 
-    public record StrategyParams(
-            @Size(min = 1) java.util.Map<String, Object> params
-    ) {
+    public double getInitialCapitalOrDefault() {
+        return initialCapital != null ? initialCapital : 10000.0;
+    }
+
+    public double getCommissionRateOrDefault() {
+        return commissionRate != null ? commissionRate : 0.001;
+    }
+
+    public double getSlippageRateOrDefault() {
+        return slippageRate != null ? slippageRate : 0.0005;
+    }
+
+    public double getPositionSizePercentOrDefault() {
+        return positionSizePercent != null ? positionSizePercent : 100.0;
     }
 }
+

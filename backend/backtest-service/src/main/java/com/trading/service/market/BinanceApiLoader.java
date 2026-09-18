@@ -37,19 +37,20 @@ public class BinanceApiLoader {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     private final String binanceApiBaseUrl;
+    private final RedisMarketDataCache redisCache;
 
-    /**
-     * Constructs a BinanceApiLoader with dependency injection.
-     *
-     * @param restTemplate        the RestTemplate for HTTP calls
-     * @param objectMapper        the ObjectMapper for JSON parsing
-     * @param binanceApiBaseUrl   the base URL for Binance API (injectable for testing)
-     */
+    @org.springframework.beans.factory.annotation.Autowired
     public BinanceApiLoader(RestTemplate restTemplate, ObjectMapper objectMapper,
-                           @Value("${binance.api.base-url:" + BINANCE_API_BASE_URL + "}") String binanceApiBaseUrl) {
+                           @Value("${binance.api.base-url:" + BINANCE_API_BASE_URL + "}") String binanceApiBaseUrl,
+                           @org.springframework.beans.factory.annotation.Autowired(required = false) RedisMarketDataCache redisCache) {
         this.restTemplate = Objects.requireNonNull(restTemplate, "restTemplate cannot be null");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper cannot be null");
         this.binanceApiBaseUrl = Objects.requireNonNull(binanceApiBaseUrl, "binanceApiBaseUrl cannot be null");
+        this.redisCache = redisCache;
+    }
+
+    public BinanceApiLoader(RestTemplate restTemplate, ObjectMapper objectMapper, String binanceApiBaseUrl) {
+        this(restTemplate, objectMapper, binanceApiBaseUrl, null);
     }
 
     /**
@@ -68,7 +69,22 @@ public class BinanceApiLoader {
         Objects.requireNonNull(startTime, "startTime cannot be null");
         Objects.requireNonNull(endTime, "endTime cannot be null");
 
-        logger.info("Loading candles from Binance for {} {} from {} to {}",
+        // 1. Check shared Redis cache
+        if (redisCache != null) {
+            List<Candle> cachedCandles = redisCache.loadCandles(symbol, timeframe, startTime, endTime);
+            if (!cachedCandles.isEmpty()) {
+                Candle first = cachedCandles.get(0);
+                Candle last = cachedCandles.get(cachedCandles.size() - 1);
+                // If the cache fully covers [startTime, endTime]
+                if (first.getOpenTime().compareTo(startTime) <= 0 && last.getOpenTime().compareTo(endTime) >= 0) {
+                    logger.info("Retrieved {} candles from shared Redis cache for {} {} (TTL refreshed to 10m)",
+                            cachedCandles.size(), symbol, timeframe);
+                    return cachedCandles;
+                }
+            }
+        }
+
+        logger.info("Loading candles from Binance API for {} {} from {} to {}",
                 symbol, timeframe, startTime, endTime);
 
         List<Candle> allCandles = new ArrayList<>();
@@ -96,6 +112,11 @@ public class BinanceApiLoader {
                 Thread.currentThread().interrupt();
                 throw new MarketDataException("Interrupted while loading candles", e);
             }
+        }
+
+        // 2. Save newly loaded candles into shared Redis cache with 10-minute sliding TTL
+        if (redisCache != null && !allCandles.isEmpty()) {
+            redisCache.saveCandles(symbol, timeframe, allCandles);
         }
 
         logger.info("Loaded {} candles from Binance for {} {}", allCandles.size(), symbol, timeframe);

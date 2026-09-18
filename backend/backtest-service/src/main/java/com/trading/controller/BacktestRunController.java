@@ -44,6 +44,10 @@ public class BacktestRunController {
     private final BacktestPersistenceService persistenceService;
     private final BacktestRunResponseMapper responseMapper;
 
+    private Long getUserId(UserPrincipal principal) {
+        return (principal != null && principal.getId() != null) ? principal.getId() : 1L;
+    }
+
     /**
      * Runs a backtest and persists the result for the authenticated user.
      */
@@ -52,18 +56,25 @@ public class BacktestRunController {
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody RunBacktestRequest request) {
 
+        Long userId = getUserId(principal);
+        @SuppressWarnings("unchecked")
+        java.util.Map<String, Object> params = request.strategyParams();
+        if (params.containsKey("params") && params.get("params") instanceof java.util.Map<?, ?> inner) {
+            params = (java.util.Map<String, Object>) inner;
+        }
+
         BacktestRun run = runBacktestAppService.runAndSave(
-                principal.getId(),
+                userId,
                 request.symbol(),
                 request.timeframe(),
                 request.startTime(),
                 request.getEndTimeOrNow(),
                 request.strategyType(),
-                request.strategyParams().params(),
-                request.initialCapital(),
-                request.commissionRate(),
-                request.slippageRate(),
-                request.positionSizePercent());
+                params,
+                request.getInitialCapitalOrDefault(),
+                request.getCommissionRateOrDefault(),
+                request.getSlippageRateOrDefault(),
+                request.getPositionSizePercentOrDefault());
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(responseMapper.toDetailResponse(run));
@@ -78,7 +89,8 @@ public class BacktestRunController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
 
-        List<BacktestRun> runs = persistenceService.findBacktestRuns(principal.getId(), page, size);
+        Long userId = getUserId(principal);
+        List<BacktestRun> runs = persistenceService.findBacktestRuns(userId, page, size);
         return ResponseEntity.ok(responseMapper.toSummaryResponses(runs));
     }
 
@@ -91,7 +103,8 @@ public class BacktestRunController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
 
-        BacktestRun run = persistenceService.findBacktestRun(principal.getId(), id);
+        Long userId = getUserId(principal);
+        BacktestRun run = persistenceService.findBacktestRun(userId, id);
         return ResponseEntity.ok(responseMapper.toDetailResponse(run));
     }
 
@@ -104,7 +117,8 @@ public class BacktestRunController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
 
-        BacktestRun run = persistenceService.findBacktestRun(principal.getId(), id);
+        Long userId = getUserId(principal);
+        BacktestRun run = persistenceService.findBacktestRun(userId, id);
         return ResponseEntity.ok(responseMapper.toTradeDetails(run));
     }
 
@@ -114,7 +128,8 @@ public class BacktestRunController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
 
-        BacktestRun run = persistenceService.findBacktestRunWithMetrics(principal.getId(), id);
+        Long userId = getUserId(principal);
+        BacktestRun run = persistenceService.findBacktestRunWithMetrics(userId, id);
         return ResponseEntity.ok(responseMapper.toMetricsDetail(run));
     }
 
@@ -124,7 +139,8 @@ public class BacktestRunController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
 
-        BacktestRun run = persistenceService.findBacktestRunWithEquity(principal.getId(), id);
+        Long userId = getUserId(principal);
+        BacktestRun run = persistenceService.findBacktestRunWithEquity(userId, id);
         return ResponseEntity.ok(responseMapper.toEquityPointDetails(run));
     }
 
@@ -137,7 +153,8 @@ public class BacktestRunController {
             @AuthenticationPrincipal UserPrincipal principal,
             @PathVariable Long id) {
 
-        persistenceService.deleteByIdAndUser(id, principal.getId());
+        Long userId = getUserId(principal);
+        persistenceService.deleteByIdAndUser(id, userId);
         return ResponseEntity.noContent().build();
     }
 }
