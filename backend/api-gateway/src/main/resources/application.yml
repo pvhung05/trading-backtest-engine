@@ -7,10 +7,14 @@ spring:
 
   cloud:
     gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
       globalcors:
+        add-to-simple-url-handler-mapping: true
         cors-configurations:
           '[/**]':
-            allowedOriginPatterns: "*"
+            allowedOriginPatterns:
+              - "*"
             allowedMethods:
               - GET
               - POST
@@ -18,7 +22,8 @@ spring:
               - DELETE
               - OPTIONS
               - PATCH
-            allowedHeaders: "*"
+            allowedHeaders:
+              - "*"
             allowCredentials: true
 
       routes:
@@ -32,7 +37,7 @@ spring:
         - id: realtime-service-ws
           uri: ws://localhost:8082
           predicates:
-            - Path=/ws/market/**
+            - Path=/ws/market/**, /ws/market
 
         # Backtest Service Market Load Route (takes precedence before general /api/market/**)
         - id: backtest-market-load
