@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>⚡ 1-Minute Candlestick Stream (Đúng 1 phút gửi 1 lần)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #0b0e14;
+            color: #e6edf3;
+            margin: 0;
+            padding: 24px;
+        }
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #58a6ff;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .subtitle {
+            color: #8b949e;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .card-live {
+            background: linear-gradient(145deg, #161b22, #0d1117);
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            position: relative;
+            transition: border-color 0.3s;
+        }
+        .card-live.flash-up {
+            border-color: #3fb950;
+            box-shadow: 0 0 20px rgba(63, 185, 80, 0.4);
+        }
+        .card-live.flash-down {
+            border-color: #f85149;
+            box-shadow: 0 0 20px rgba(248, 81, 73, 0.4);
+        }
+        .live-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .live-symbol {
+            font-size: 26px;
+            font-weight: 800;
+            color: #58a6ff;
+            letter-spacing: 0.5px;
+        }
+        .live-badge {
+            background: #238636;
+            color: #fff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .live-price-box {
+            display: flex;
+            align-items: baseline;
+            gap: 15px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .live-price {
+            font-size: 46px;
+            font-weight: 800;
+            font-family: 'Courier New', monospace;
+            color: #f0f6fc;
+            transition: color 0.3s;
+        }
+        .price-up { color: #3fb950 !important; }
+        .price-down { color: #f85149 !important; }
+
+        .candle-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            background: #0d1117;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #21262d;
+        }
+        .candle-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .candle-label {
+            font-size: 11px;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .candle-val {
+            font-size: 16px;
+            font-weight: 600;
+            font-family: monospace;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            background: #161b22;
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid #30363d;
+            align-items: center;
+        }
+        button.btn-symbol {
+            background-color: #21262d;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        button.btn-symbol:hover {
+            background-color: #30363d;
+            color: #fff;
+            transform: translateY(-1px);
+        }
+        button.btn-symbol.active {
+            background-color: #1f6feb;
+            border-color: #388bfd;
+            color: #ffffff;
+            box-shadow: 0 0 12px rgba(31, 111, 235, 0.6);
+        }
+        button.btn-action {
+            background-color: #238636;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        button.btn-action:hover {
+            background-color: #2ea043;
+        }
+        button.secondary {
+            background-color: #21262d;
+            border: 1px solid #30363d;
+            color: #8b949e;
+        }
+        button.secondary:hover {
+            background-color: #30363d;
+            color: #c9d1d9;
+        }
+        select, input {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            padding: 9px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .countdown-bar {
+            background: #21262d;
+            border: 1px solid #30363d;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            color: #58a6ff;
+            font-weight: 600;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .log-box {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 14px;
+            height: 280px;
+            overflow-y: auto;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12.5px;
+        }
+        .log-entry {
+            margin-bottom: 6px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid #21262d;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⏱️ 1-Minute Candlestick Stream</h1>
+        <p class="subtitle">Mỗi chu kỳ 1 phút (ở đầu giây thứ 00-01), Backend nhận nến đóng từ Binance và bắn 1 bản tin duy nhất</p>
+        
+        <!-- Live Display Card -->
+        <div class="card-live" id="cardLive">
+            <div class="live-header">
+                <div class="live-symbol" id="displaySymbol">BTCUSDT</div>
+                <div class="live-badge" id="displayInterval">KHUNG 1 PHÚT (1m)</div>
+            </div>
+            <div class="live-price-box">
+                <div class="live-price" id="displayPrice">--.--</div>
+                <div id="displayStatus" style="font-size: 14px; color: #8b949e;">Đang tải cây nến gần nhất...</div>
+            </div>
+            <div class="candle-grid">
+                <div class="candle-item">
+                    <span class="candle-label">Open (Mở cửa)</span>
+                    <span class="candle-val" id="valOpen">--</span>
+                </div>
+                <div class="candle-item">
+                    <span class="candle-label">High (Cao nhất)</span>
+                    <span class="candle-val price-up" id="valHigh">--</span>
+                </div>
+                <div class="candle-item">
+                    <span class="candle-label">Low (Thấp nhất)</span>
+                    <span class="candle-val price-down" id="valLow">--</span>
+                </div>
+                <div class="candle-item">
+                    <span class="candle-label">Volume (Khối lượng)</span>
+                    <span class="candle-val" id="valVolume">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Countdown Bar -->
+        <div class="countdown-bar">
+            <span>📡 WebSocket: <span id="streamState" style="color: #3fb950;">Đang kết nối...</span></span>
+            <span id="countdownText" style="color: #e6edf3;">⏱️ Đang đồng bộ thời gian Binance...</span>
+        </div>
+
+        <!-- Controls Selection -->
+        <div class="controls">
+            <span style="font-weight: bold; font-size: 13px; color: #8b949e;">Chọn coin:</span>
+            <button class="btn-symbol active" id="btn-BTCUSDT" onclick="switchSymbol('BTCUSDT', '1m')">🪙 BTCUSDT (1m)</button>
+            <button class="btn-symbol" id="btn-ETHUSDT" onclick="switchSymbol('ETHUSDT', '1m')">🪙 ETHUSDT (1m)</button>
+            <button class="btn-symbol" id="btn-SOLUSDT" onclick="switchSymbol('SOLUSDT', '1m')">🪙 SOLUSDT (1m)</button>
+            <button class="btn-symbol" id="btn-BNBUSDT" onclick="switchSymbol('BNBUSDT', '1m')">🪙 BNBUSDT (1m)</button>
+
+            <div style="display: flex; gap: 6px; margin-left: auto; align-items: center;">
+                <input type="text" id="customSymbol" placeholder="VD: DOGEUSDT" style="width: 110px;" value="BTCUSDT">
+                <select id="customInterval">
+                    <option value="1m" selected>1 Phút (1m)</option>
+                    <option value="5m">5 Phút (5m)</option>
+                    <option value="15m">15 Phút (15m)</option>
+                    <option value="1h">1 Giờ (1h)</option>
+                </select>
+                <button class="btn-action" onclick="startCustomStream()">Stream</button>
+            </div>
+        </div>
+
+        <!-- Realtime Logs -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-size: 13px; color: #8b949e; font-weight: 600;">Nhật ký nến đóng (Mỗi phút nhận 1 bản tin chốt):</span>
+            <button class="secondary" style="padding: 4px 10px; font-size: 12px;" onclick="clearLogs()">Xóa log</button>
+        </div>
+        <div id="logBox" class="log-box"></div>
+    </div>
+
+    <script>
+        let socket;
+        let currentSymbol = 'BTCUSDT';
+        let currentInterval = '1m';
+        let currentSubChartId = null;
+        let lastClosePrice = 0;
+
+        const cardLive = document.getElementById('cardLive');
+        const logBox = document.getElementById('logBox');
+        const displaySymbol = document.getElementById('displaySymbol');
+        const displayInterval = document.getElementById('displayInterval');
+        const displayPrice = document.getElementById('displayPrice');
+        const displayStatus = document.getElementById('displayStatus');
+        const streamState = document.getElementById('streamState');
+        const valOpen = document.getElementById('valOpen');
+        const valHigh = document.getElementById('valHigh');
+        const valLow = document.getElementById('valLow');
+        const valVolume = document.getElementById('valVolume');
+        const countdownText = document.getElementById('countdownText');
+
+        // Đồng hồ đếm ngược giây chính xác
+        setInterval(() => {
+            const now = new Date();
+            const sec = now.getSeconds();
+            const remaining = (60 - sec) % 60;
+
+            if (remaining === 0 || remaining === 59) {
+                countdownText.innerHTML = `⚡ <span style="color: #e3b341;">Đang ở mốc :00s - Chờ nhận nến đóng từ sàn Binance...</span>`;
+            } else {
+                countdownText.innerHTML = `⏱️ Còn <b style="color: #58a6ff; font-size: 15px;">${remaining}s</b> nữa sẽ chốt nến tiếp theo (vào giây :00)`;
+            }
+        }, 500);
+
+        function log(msg, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            const time = new Date().toLocaleTimeString();
+            entry.textContent = `[${time}] ${msg}`;
+            logBox.prepend(entry);
+        }
+
+        function connect() {
+            streamState.textContent = "Đang kết nối WebSocket...";
+            streamState.style.color = "#e3b341";
+
+            const wsUrl = (window.location.port === '8082') ? 'ws://localhost:8082/ws/market' : 'ws://localhost:8080/ws/market';
+            socket = new WebSocket(wsUrl);
+
+            socket.onopen = () => {
+                log("✅ WebSocket kết nối thành công! Đang thực hiện STOMP Handshake...", "info");
+                socket.send("CONNECT\naccept-version:1.1,1.2\nheart-beat:10000,10000\n\n\0");
+            };
+
+            socket.onmessage = (event) => {
+                const data = event.data;
+                if (data.includes("CONNECTED")) {
+                    log("✅ STOMP Handshake hoàn tất! Đang kích hoạt stream...", "info");
+                    streamState.textContent = "Đang lắng nghe nến đóng (1 phút / lần)";
+                    streamState.style.color = "#3fb950";
+                    switchSymbol(currentSymbol, currentInterval);
+                } else if (data.includes("MESSAGE")) {
+                    const parts = data.split("\n\n");
+                    if (parts.length >= 2) {
+                        const body = parts.slice(1).join("\n\n").replace(/\0/g, "");
+                        try {
+                            const json = JSON.parse(body);
+                            handleClosedCandle(json);
+                        } catch (e) {
+                            console.error("Parse STOMP JSON error:", e);
+                        }
+                    }
+                }
+            };
+
+            socket.onclose = () => {
+                streamState.textContent = "Mất kết nối WebSocket. Đang tự kết nối lại...";
+                streamState.style.color = "#f85149";
+                displayStatus.textContent = "Mất kết nối WebSocket.";
+                log("❌ WebSocket Disconnected. Sẽ kết nối lại sau 3 giây...", "price-down");
+                setTimeout(connect, 3000);
+            };
+
+            socket.onerror = (err) => {
+                console.error("WebSocket error:", err);
+            };
+        }
+
+        // Tải snapshot nến gần nhất qua REST API ngay lập tức để không bị trống
+        async function fetchInitialCandle(symbol, interval) {
+            displayStatus.textContent = "Đang nạp nến gần nhất...";
+            const endpoints = [
+                `http://localhost:8080/api/market/klines?symbol=${symbol}&interval=${interval}&limit=1`,
+                `http://localhost:8082/api/market/klines?symbol=${symbol}&interval=${interval}&limit=1`
+            ];
+
+            for (const url of endpoints) {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    let latest = null;
+                    if (Array.isArray(data) && data.length > 0) {
+                        latest = data[0];
+                    } else if (data && data.close) {
+                        latest = data;
+                    }
+
+                    if (latest) {
+                        updateDisplay(symbol, interval, latest.close, latest.open, latest.high, latest.low, latest.volume, "Nến gần nhất (Đang đợi cây nến tiếp theo đóng sau 1 phút)");
+                        log(`📥 Đã nạp nến gần nhất của ${symbol}: Giá = ${latest.close}`, "info");
+                        return;
+                    }
+                } catch (e) {
+                    // try next endpoint
+                }
+            }
+        }
+
+        function handleClosedCandle(json) {
+            if (!json || !json.symbol || json.symbol.toUpperCase() !== currentSymbol) {
+                return;
+            }
+
+            const closePrice = parseFloat(json.close || 0);
+            const timeStr = new Date().toLocaleTimeString();
+            updateDisplay(json.symbol, json.interval || currentInterval, json.close, json.open, json.high, json.low, json.volume, `🔔 VỪA CHỐT NẾN MỚI LÚC ${timeStr}`);
+
+            // Hiệu ứng Flash viền card
+            const flashClass = closePrice >= lastClosePrice ? 'flash-up' : 'flash-down';
+            cardLive.classList.add(flashClass);
+            setTimeout(() => cardLive.classList.remove(flashClass), 1500);
+
+            const type = closePrice >= lastClosePrice ? 'price-up' : 'price-down';
+            log(`🔔 [${json.symbol} - ${currentInterval}] ĐÃ CHỐT NẾN MỚI: Giá đóng = ${closePrice} | Open = ${json.open} | High = ${json.high} | Low = ${json.low} | Vol = ${json.volume}`, type);
+            lastClosePrice = closePrice;
+        }
+
+        function updateDisplay(symbol, interval, close, open, high, low, volume, statusText) {
+            const price = parseFloat(close || 0);
+            displayPrice.className = 'live-price ' + (price >= lastClosePrice ? 'price-up' : 'price-down');
+            displayPrice.textContent = price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+
+            displaySymbol.textContent = symbol;
+            displayInterval.textContent = `KHUNG ${interval.toUpperCase()}`;
+            displayStatus.textContent = statusText;
+
+            if (open) valOpen.textContent = parseFloat(open).toFixed(2);
+            if (high) valHigh.textContent = parseFloat(high).toFixed(2);
+            if (low) valLow.textContent = parseFloat(low).toFixed(2);
+            if (volume) valVolume.textContent = parseFloat(volume).toFixed(4);
+        }
+
+        function switchSymbol(symbol, interval) {
+            symbol = symbol.toUpperCase().trim();
+            interval = interval || currentInterval;
+
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                // 1. Unsubscribe coin cũ
+                if (currentSubChartId) {
+                    socket.send(`UNSUBSCRIBE\nid:${currentSubChartId}\n\n\0`);
+                    socket.send(`SEND\ndestination:/app/chart/unsubscribe/${currentSymbol}/${currentInterval}\n\n\0`);
+                }
+
+                currentSymbol = symbol;
+                currentInterval = interval;
+
+                // Highlight button
+                document.querySelectorAll('.btn-symbol').forEach(b => b.classList.remove('active'));
+                const activeBtn = document.getElementById(`btn-${symbol}`);
+                if (activeBtn) activeBtn.classList.add('active');
+
+                // 2. Tải ngay nến gần nhất qua REST API để không bị trống màn hình
+                fetchInitialCandle(symbol, interval);
+
+                // 3. Đăng ký nhận nến đóng sau mỗi 1 phút
+                currentSubChartId = `sub-chart-${symbol}-${interval}-${Date.now()}`;
+                socket.send(`SUBSCRIBE\nid:${currentSubChartId}\ndestination:/topic/chart/${symbol}/${interval}\n\n\0`);
+                
+                const reqPayload = JSON.stringify({ symbol: symbol, interval: interval });
+                socket.send(`SEND\ndestination:/app/chart/subscribe\ncontent-type:application/json\ncontent-length:${reqPayload.length}\n\n${reqPayload}\0`);
+
+                log(`🔄 Đã chuyển sang [${symbol}] (${interval}) - Đúng mỗi ${interval} Backend sẽ bắn 1 cây nến về.`, "info");
+            }
+        }
+
+        function startCustomStream() {
+            const sym = document.getElementById('customSymbol').value;
+            const intv = document.getElementById('customInterval').value;
+            if (sym) {
+                switchSymbol(sym, intv);
+            }
+        }
+
+        function clearLogs() {
+            logBox.innerHTML = '';
+        }
+
+        // Khởi động
+        connect();
+    </script>
+</body>
+</html>

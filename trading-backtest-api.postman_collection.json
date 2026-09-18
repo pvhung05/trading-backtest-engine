@@ -1,0 +1,515 @@
+{
+	"info": {
+		"_postman_id": "trading-backtest-engine-collection",
+		"name": "Trading Backtest Engine - Microservices API",
+		"description": "Postman collection for Trading Backtest Engine routed through API Gateway (Port 8080).\nServices: Auth (8081), Realtime Market (8082), Backtest Engine (8083).",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "1. Authentication Service",
+			"item": [
+				{
+					"name": "Register",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"trader01\",\n  \"email\": \"trader01@gmail.com\",\n  \"password\": \"Password123@\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						}
+					}
+				},
+				{
+					"name": "Login (Auto saves token)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonData = pm.response.json();",
+									"if (jsonData.token) {",
+									"    pm.collectionVariables.set(\"auth_token\", jsonData.token);",
+									"    console.log(\"Saved auth_token:\", jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"trader01\",\n  \"password\": \"Password123@\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Current User Profile (/me)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"me"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "2. Realtime Market Service",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"health"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get All Symbols",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/symbols",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"symbols"
+							]
+						}
+					}
+				},
+				{
+					"name": "Search Symbols",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/symbols/search?q=BTC",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"symbols",
+								"search"
+							],
+							"query": [
+								{
+									"key": "q",
+									"value": "BTC"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Watchlist (Top Tickers)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/watchlist?limit=20",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"watchlist"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "20"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Filter Watchlist by Quote Asset",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/watchlist/filter?quoteAsset=USDT",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"watchlist",
+								"filter"
+							],
+							"query": [
+								{
+									"key": "quoteAsset",
+									"value": "USDT"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Specific Ticker (BTCUSDT)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/watchlist/BTCUSDT",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"watchlist",
+								"BTCUSDT"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Historical Klines (Candlesticks)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/klines?symbol=BTCUSDT&interval=1h&limit=100",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"klines"
+							],
+							"query": [
+								{
+									"key": "symbol",
+									"value": "BTCUSDT"
+								},
+								{
+									"key": "interval",
+									"value": "1h"
+								},
+								{
+									"key": "limit",
+									"value": "100"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Symbol Details",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/symbol/BTCUSDT",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"symbol",
+								"BTCUSDT"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Market Cache Overview",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/cache",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"cache"
+							]
+						}
+					}
+				},
+				{
+					"name": "Clear Market Cache",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/market/cache",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"cache"
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "3. Backtest Service",
+			"item": [
+				{
+					"name": "Run Backtest and Save",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"symbol\": \"BTCUSDT\",\n  \"timeframe\": \"1h\",\n  \"startTime\": \"2024-01-01T00:00:00Z\",\n  \"endTime\": \"2024-03-01T00:00:00Z\",\n  \"strategyType\": \"SMA_CROSS\",\n  \"strategyParams\": {\n    \"params\": {\n      \"shortPeriod\": 10,\n      \"longPeriod\": 30\n    }\n  },\n  \"initialCapital\": 10000.0,\n  \"commissionRate\": 0.001,\n  \"slippageRate\": 0.0005,\n  \"positionSizePercent\": 100.0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/backtest-runs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"backtest-runs"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get All User Backtest Runs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backtest-runs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"backtest-runs"
+							]
+						}
+					}
+				},
+				{
+					"name": "Get Backtest Run Details by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backtest-runs/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"backtest-runs",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Delete Backtest Run by ID",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backtest-runs/1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"backtest-runs",
+								"1"
+							]
+						}
+					}
+				},
+				{
+					"name": "Load Market Data for Backtest Engine",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/market/load?symbol=BTCUSDT&timeframe=1h&startTime=2024-01-01T00:00:00Z&endTime=2024-02-01T00:00:00Z",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"market",
+								"load"
+							],
+							"query": [
+								{
+									"key": "symbol",
+									"value": "BTCUSDT"
+								},
+								{
+									"key": "timeframe",
+									"value": "1h"
+								},
+								{
+									"key": "startTime",
+									"value": "2024-01-01T00:00:00Z"
+								},
+								{
+									"key": "endTime",
+									"value": "2024-02-01T00:00:00Z"
+								}
+							]
+						}
+					}
+				},
+				{
+					"name": "Stateless Full Portfolio Simulation",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{auth_token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"marketData\": {\n    \"symbol\": \"BTCUSDT\",\n    \"timeframe\": \"1h\",\n    \"startTime\": \"2024-01-01T00:00:00Z\",\n    \"endTime\": \"2024-02-01T00:00:00Z\"\n  },\n  \"strategy\": {\n    \"strategyType\": \"RSI\",\n    \"parameters\": {\n      \"rsiPeriod\": 14,\n      \"oversoldThreshold\": 30.0,\n      \"overboughtThreshold\": 70.0\n    }\n  },\n  \"execution\": {\n    \"commissionRate\": 0.001,\n    \"slippageRate\": 0.0005,\n    \"positionSizePercent\": 100.0\n  },\n  \"capital\": 10000.0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/portfolio/simulate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"portfolio",
+								"simulate"
+							]
+						}
+					}
+				}
+			]
+		}
+	]
+}
