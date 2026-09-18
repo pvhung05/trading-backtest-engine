@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   ChevronUp,
   Maximize,
@@ -11,8 +11,18 @@ import {
   DollarSign,
   ChevronDown,
   Play,
+  Sliders,
+  TrendingUp,
+  TrendingDown,
+  Percent,
+  ShieldAlert,
+  Award,
+  Zap,
+  Loader2,
 } from 'lucide-react';
 import { TradeHistoryTable, TradeRecord } from './TradeHistoryTable';
+import { useOHLCV } from './OHLCVContext';
+import { backtestApi, BacktestRunDetailResponse, MetricsDetail } from '../services/backtestApi';
 
 export interface ActiveStrategy {
   name: string;
@@ -29,12 +39,8 @@ interface StrategyBarProps {
   chartHidden?: boolean;
   expanded?: boolean;
   onCollapsePanel?: () => void;
-  trades?: TradeRecord[];
   activeView?: 'metrics' | 'history' | 'period' | 'capital';
   onActiveViewChange?: (view: 'metrics' | 'history' | 'period' | 'capital') => void;
-  onRunBacktest?: () => void;
-  running?: boolean;
-  // Persisted initial values from localStorage so the UI doesn't reset on reload.
   initialDateRange?: [string, string];
   initialCapital?: number;
   onDateRangeChange?: (range: [string, string]) => void;
@@ -44,15 +50,16 @@ interface StrategyBarProps {
 type ViewKey = 'metrics' | 'history' | 'period' | 'capital';
 
 const VIEW_BUTTONS: { key: ViewKey; label: string; Icon: typeof BarChart3 }[] = [
-  { key: 'metrics', label: 'Metrics', Icon: BarChart3 },
+  { key: 'metrics', label: 'Performance Metrics', Icon: BarChart3 },
   { key: 'history', label: 'Trade History', Icon: History },
   { key: 'period', label: 'Backtest Period', Icon: Calendar },
-  { key: 'capital', label: 'Init Capital', Icon: DollarSign },
+  { key: 'capital', label: 'Initial Capital', Icon: DollarSign },
 ];
 
-const DEFAULT_RANGE: [string, string] = ['2011-08-15', '2026-06-29'];
+const DEFAULT_RANGE: [string, string] = ['2024-01-01', '2024-06-01'];
 
 function formatDate(iso: string) {
+  if (!iso) return '—';
   const d = new Date(iso + 'T00:00:00');
   return d.toLocaleDateString('en-US', {
     month: 'short',
@@ -62,94 +69,20 @@ function formatDate(iso: string) {
 }
 
 function formatCapital(value: number) {
-  if (value >= 1_000_000) return `${value / 1_000_000}M`;
-  if (value >= 1_000) return `${value / 1_000}K`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(0)}K`;
   return String(value);
 }
 
-const PRESETS = [10_000, 100_000, 500_000, 1_000_000, 5_000_000, 10_000_000];
+function formatNum(v: number | undefined | null, decimals = 2) {
+  if (v === undefined || v === null || isNaN(v)) return '—';
+  return v.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+}
 
-const SAMPLE_TRADES: TradeRecord[] = [
-  // ---- Trade 1 — Long win, mid-range price ----
-  { tradeNumber: 1,  date: '2024-03-12 09:30', type: 'Long',  signal: 'Entry', price: 38.97, positionSizeUsd: 97_425.00,    tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 0.00    },
-  { tradeNumber: 1,  date: '2024-03-12 14:15', type: 'Long',  signal: 'Exit',  price: 41.22, positionSizeUsd: 103_050.00,   tradePnlUsd: 5_625.00, runUpUsd: 5_625.00, drawdownUsd: -812.50, cumulativePnlUsd: 5_625.00 },
-
-  // ---- Trade 2 — Long loss ----
-  { tradeNumber: 2,  date: '2024-03-18 10:05', type: 'Long',  signal: 'Entry', price: 42.50, positionSizeUsd: 106_250.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 5_625.00 },
-  { tradeNumber: 2,  date: '2024-03-18 13:40', type: 'Long',  signal: 'Exit',  price: 40.10, positionSizeUsd: 100_250.00,   tradePnlUsd: -6_000.00, runUpUsd: 187.50, drawdownUsd: -6_000.00, cumulativePnlUsd: -375.00 },
-
-  // ---- Trade 3 — Long win, big move ----
-  { tradeNumber: 3,  date: '2024-04-02 09:30', type: 'Long',  signal: 'Entry', price: 39.92, positionSizeUsd: 99_800.00,    tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: -375.00 },
-  { tradeNumber: 3,  date: '2024-04-02 15:55', type: 'Long',  signal: 'Exit',  price: 45.30, positionSizeUsd: 113_250.00,   tradePnlUsd: 13_450.00, runUpUsd: 13_450.00, drawdownUsd: -420.00, cumulativePnlUsd: 13_075.00 },
-
-  // ---- Trade 4 — Short win (first short in the list) ----
-  { tradeNumber: 4,  date: '2024-04-15 09:30', type: 'Short', signal: 'Entry', price: 48.20, positionSizeUsd: 120_500.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 13_075.00 },
-  { tradeNumber: 4,  date: '2024-04-15 11:20', type: 'Short', signal: 'Exit',  price: 44.65, positionSizeUsd: 111_625.00,   tradePnlUsd: 8_875.00, runUpUsd: 8_875.00, drawdownUsd: -310.00, cumulativePnlUsd: 21_950.00 },
-
-  // ---- Trade 5 — Short loss ----
-  { tradeNumber: 5,  date: '2024-04-29 09:45', type: 'Short', signal: 'Entry', price: 46.10, positionSizeUsd: 115_250.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 21_950.00 },
-  { tradeNumber: 5,  date: '2024-04-29 14:00', type: 'Short', signal: 'Exit',  price: 49.80, positionSizeUsd: 124_500.00,   tradePnlUsd: -9_250.00, runUpUsd: 120.00, drawdownUsd: -9_250.00, cumulativePnlUsd: 12_700.00 },
-
-  // ---- Trade 6 — Long win (crypto-style 5-figure price) ----
-  { tradeNumber: 6,  date: '2024-05-08 09:30', type: 'Long',  signal: 'Entry', price: 62_811.00, positionSizeUsd: 94_216_500.00, tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 12_700.00 },
-  { tradeNumber: 6,  date: '2024-05-08 16:30', type: 'Long',  signal: 'Exit',  price: 65_245.00, positionSizeUsd: 97_867_500.00, tradePnlUsd: 3_651_000.00, runUpUsd: 3_651_000.00, drawdownUsd: -812_500.00, cumulativePnlUsd: 3_663_700.00 },
-
-  // ---- Trade 7 — Long loss, big drawdown ----
-  { tradeNumber: 7,  date: '2024-05-22 09:30', type: 'Long',  signal: 'Entry', price: 64_900.00, positionSizeUsd: 97_350_000.00, tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 3_663_700.00 },
-  { tradeNumber: 7,  date: '2024-05-22 13:15', type: 'Long',  signal: 'Exit',  price: 61_400.00, positionSizeUsd: 92_100_000.00, tradePnlUsd: -5_250_000.00, runUpUsd: 0.00, drawdownUsd: -5_250_000.00, cumulativePnlUsd: -1_586_300.00 },
-
-  // ---- Trade 8 — Short win (big) ----
-  { tradeNumber: 8,  date: '2024-06-04 09:30', type: 'Short', signal: 'Entry', price: 67_800.00, positionSizeUsd: 101_700_000.00, tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: -1_586_300.00 },
-  { tradeNumber: 8,  date: '2024-06-04 15:45', type: 'Short', signal: 'Exit',  price: 64_120.00, positionSizeUsd: 96_180_000.00,  tradePnlUsd: 5_520_000.00, runUpUsd: 5_520_000.00, drawdownUsd: -145_000.00, cumulativePnlUsd: 3_933_700.00 },
-
-  // ---- Trade 9 — Long small win ----
-  { tradeNumber: 9,  date: '2024-06-18 09:30', type: 'Long',  signal: 'Entry', price: 43.55, positionSizeUsd: 217_750.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 3_933_700.00 },
-  { tradeNumber: 9,  date: '2024-06-18 11:50', type: 'Long',  signal: 'Exit',  price: 44.10, positionSizeUsd: 220_500.00,   tradePnlUsd: 2_750.00, runUpUsd: 2_750.00, drawdownUsd: -880.00, cumulativePnlUsd: 3_936_450.00 },
-
-  // ---- Trade 10 — Long breakeven / tiny loss ----
-  { tradeNumber: 10, date: '2024-07-02 09:30', type: 'Long',  signal: 'Entry', price: 44.80, positionSizeUsd: 224_000.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 3_936_450.00 },
-  { tradeNumber: 10, date: '2024-07-02 14:20', type: 'Long',  signal: 'Exit',  price: 44.72, positionSizeUsd: 223_600.00,   tradePnlUsd: -400.00, runUpUsd: 480.00, drawdownUsd: -1_120.00, cumulativePnlUsd: 3_936_050.00 },
-
-  // ---- Trade 11 — Short loss ----
-  { tradeNumber: 11, date: '2024-07-15 09:30', type: 'Short', signal: 'Entry', price: 41.30, positionSizeUsd: 206_500.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 3_936_050.00 },
-  { tradeNumber: 11, date: '2024-07-15 12:30', type: 'Short', signal: 'Exit',  price: 43.85, positionSizeUsd: 219_250.00,   tradePnlUsd: -12_750.00, runUpUsd: 0.00, drawdownUsd: -12_750.00, cumulativePnlUsd: 3_923_300.00 },
-
-  // ---- Trade 12 — Long win, very high price (BTC) ----
-  { tradeNumber: 12, date: '2024-08-01 09:30', type: 'Long',  signal: 'Entry', price: 71_240.00, positionSizeUsd: 56_992_000.00, tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 3_923_300.00 },
-  { tradeNumber: 12, date: '2024-08-01 16:00', type: 'Long',  signal: 'Exit',  price: 74_820.00, positionSizeUsd: 59_856_000.00, tradePnlUsd: 2_864_000.00, runUpUsd: 2_864_000.00, drawdownUsd: -512_000.00, cumulativePnlUsd: 6_787_300.00 },
-
-  // ---- Trade 13 — Short win ----
-  { tradeNumber: 13, date: '2024-08-14 09:30', type: 'Short', signal: 'Entry', price: 73_100.00, positionSizeUsd: 58_480_000.00, tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 6_787_300.00 },
-  { tradeNumber: 13, date: '2024-08-14 13:45', type: 'Short', signal: 'Exit',  price: 70_650.00, positionSizeUsd: 56_520_000.00, tradePnlUsd: 1_960_000.00, runUpUsd: 1_960_000.00, drawdownUsd: -88_000.00, cumulativePnlUsd: 8_747_300.00 },
-
-  // ---- Trade 14 — Long loss ----
-  { tradeNumber: 14, date: '2024-08-28 09:30', type: 'Long',  signal: 'Entry', price: 72_400.00, positionSizeUsd: 57_920_000.00, tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 8_747_300.00 },
-  { tradeNumber: 14, date: '2024-08-28 11:15', type: 'Long',  signal: 'Exit',  price: 70_950.00, positionSizeUsd: 56_760_000.00, tradePnlUsd: -1_160_000.00, runUpUsd: 0.00, drawdownUsd: -1_160_000.00, cumulativePnlUsd: 7_587_300.00 },
-
-  // ---- Trade 15 — Long win, mid-range ----
-  { tradeNumber: 15, date: '2024-09-11 09:30', type: 'Long',  signal: 'Entry', price: 50.20, positionSizeUsd: 175_700.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 7_587_300.00 },
-  { tradeNumber: 15, date: '2024-09-11 15:30', type: 'Long',  signal: 'Exit',  price: 52.85, positionSizeUsd: 184_975.00,   tradePnlUsd: 9_275.00, runUpUsd: 9_275.00, drawdownUsd: -245.00, cumulativePnlUsd: 7_596_575.00 },
-
-  // ---- Trade 16 — Short loss ----
-  { tradeNumber: 16, date: '2024-09-25 09:30', type: 'Short', signal: 'Entry', price: 54.30, positionSizeUsd: 190_050.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 7_596_575.00 },
-  { tradeNumber: 16, date: '2024-09-25 14:10', type: 'Short', signal: 'Exit',  price: 56.75, positionSizeUsd: 198_625.00,   tradePnlUsd: -8_575.00, runUpUsd: 280.00, drawdownUsd: -8_575.00, cumulativePnlUsd: 7_588_000.00 },
-
-  // ---- Trade 17 — Long win ----
-  { tradeNumber: 17, date: '2024-10-09 09:30', type: 'Long',  signal: 'Entry', price: 58.10, positionSizeUsd: 203_350.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 7_588_000.00 },
-  { tradeNumber: 17, date: '2024-10-09 11:45', type: 'Long',  signal: 'Exit',  price: 60.40, positionSizeUsd: 211_400.00,   tradePnlUsd: 8_050.00, runUpUsd: 8_050.00, drawdownUsd: -525.00, cumulativePnlUsd: 7_596_050.00 },
-
-  // ---- Trade 18 — Short win ----
-  { tradeNumber: 18, date: '2024-10-23 09:30', type: 'Short', signal: 'Entry', price: 61.20, positionSizeUsd: 214_200.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 7_596_050.00 },
-  { tradeNumber: 18, date: '2024-10-23 13:20', type: 'Short', signal: 'Exit',  price: 58.85, positionSizeUsd: 205_975.00,   tradePnlUsd: 8_225.00, runUpUsd: 8_225.00, drawdownUsd: -140.00, cumulativePnlUsd: 7_604_275.00 },
-
-  // ---- Trade 19 — Long small loss ----
-  { tradeNumber: 19, date: '2024-11-06 09:30', type: 'Long',  signal: 'Entry', price: 57.40, positionSizeUsd: 200_900.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 7_604_275.00 },
-  { tradeNumber: 19, date: '2024-11-06 10:55', type: 'Long',  signal: 'Exit',  price: 56.85, positionSizeUsd: 198_975.00,   tradePnlUsd: -1_925.00, runUpUsd: 122.50, drawdownUsd: -1_925.00, cumulativePnlUsd: 7_602_350.00 },
-
-  // ---- Trade 20 — Long win (large) ----
-  { tradeNumber: 20, date: '2024-11-20 09:30', type: 'Long',  signal: 'Entry', price: 59.30, positionSizeUsd: 207_550.00,   tradePnlUsd: 0.00,    runUpUsd: 0.00,    drawdownUsd: 0.00,   cumulativePnlUsd: 7_602_350.00 },
-  { tradeNumber: 20, date: '2024-11-20 16:30', type: 'Long',  signal: 'Exit',  price: 63.80, positionSizeUsd: 223_300.00,   tradePnlUsd: 15_750.00, runUpUsd: 15_750.00, drawdownUsd: -490.00, cumulativePnlUsd: 7_618_100.00 },
-];
+const PRESETS = [10_000, 50_000, 100_000, 500_000, 1_000_000];
 
 export function StrategyBar({
   strategies,
@@ -161,18 +94,23 @@ export function StrategyBar({
   chartHidden = false,
   expanded = false,
   onCollapsePanel,
-  trades = SAMPLE_TRADES,
   activeView: activeViewProp = 'metrics',
   onActiveViewChange,
-  onRunBacktest,
-  running = false,
   initialDateRange = DEFAULT_RANGE,
-  initialCapital = 1_000_000,
+  initialCapital = 10_000,
   onDateRangeChange,
   onCapitalChange,
 }: StrategyBarProps) {
-  const [collapsed, setCollapsed] = useState(false);
-  const activeView = activeViewProp;
+  const {
+    symbol,
+    interval,
+    backtestResult,
+    setBacktestResult,
+    isBacktestRunning,
+    setIsBacktestRunning,
+    setSelectedTradeTime,
+  } = useOHLCV();
+
   const [activeStrategyName, setActiveStrategyName] = useState<string | null>(
     () => strategies[0]?.name ?? null
   );
@@ -181,94 +119,149 @@ export function StrategyBar({
   const [capital, setCapital] = useState<number>(initialCapital);
   const [capitalOpen, setCapitalOpen] = useState(false);
   const [capitalDraft, setCapitalDraft] = useState<string>(String(initialCapital));
+  const [paramsOpen, setParamsOpen] = useState(false);
+
+  // Strategy Parameters State
+  const [strategyParams, setStrategyParams] = useState<Record<string, any>>({
+    shortPeriod: 10,
+    longPeriod: 30,
+    rsiPeriod: 14,
+    oversoldThreshold: 30,
+    overboughtThreshold: 70,
+    signalPeriod: 9,
+  });
+
+  const [error, setError] = useState<string | null>(null);
+
+  const activeView = activeViewProp;
   const periodRef = useRef<HTMLDivElement>(null);
   const capitalRef = useRef<HTMLDivElement>(null);
+  const paramsRef = useRef<HTMLDivElement>(null);
   const tabsScrollRef = useRef<HTMLDivElement>(null);
 
-  // Wrap setters so internal changes propagate to the parent (which
-  // owns the persisted state). The parent's onChange handler writes
-  // to localStorage; the prop coming back in keeps these useEffects
-  // idempotent and safe to fire on every render.
+  // Detect active strategy type
+  const detectedStrategyType = useMemo(() => {
+    if (!activeStrategyName) return 'SMA_CROSS';
+    const lower = activeStrategyName.toLowerCase();
+    if (lower.includes('rsi')) return 'RSI';
+    if (lower.includes('macd')) return 'MACD';
+    return 'SMA_CROSS';
+  }, [activeStrategyName]);
+
   const updateDateRange = (next: [string, string]) => {
     setDateRange(next);
     onDateRangeChange?.(next);
   };
+
   const updateCapital = (next: number) => {
     setCapital(next);
     onCapitalChange?.(next);
   };
 
-  // Sync internal state with persisted parent values on prop change
-  // (covers the case where the parent restores from localStorage after mount).
   useEffect(() => {
     setDateRange(initialDateRange);
   }, [initialDateRange]);
+
   useEffect(() => {
     setCapital(initialCapital);
     setCapitalDraft(String(initialCapital));
   }, [initialCapital]);
 
   useEffect(() => {
-    if (!periodOpen) return;
-    const onClickOutside = (e: MouseEvent) => {
-      if (periodRef.current && !periodRef.current.contains(e.target as Node)) {
-        setPeriodOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [periodOpen]);
-
-  useEffect(() => {
-    if (!capitalOpen) return;
-    const onClickOutside = (e: MouseEvent) => {
-      if (capitalRef.current && !capitalRef.current.contains(e.target as Node)) {
-        setCapitalOpen(false);
-        setCapitalDraft(String(capital));
-      }
-    };
-    document.addEventListener('mousedown', onClickOutside);
-    return () => document.removeEventListener('mousedown', onClickOutside);
-  }, [capitalOpen, capital]);
-
-  // Keep `activeStrategyName` valid: if it points to a strategy that no
-  // longer exists (because the user closed it), fall back to the first
-  // remaining one so the UI never highlights a "ghost" tab.
-  useEffect(() => {
-    if (strategies.length === 0) {
-      if (activeStrategyName !== null) setActiveStrategyName(null);
-      return;
-    }
-    if (!strategies.some((s) => s.name === activeStrategyName)) {
+    if (strategies.length > 0 && !strategies.some((s) => s.name === activeStrategyName)) {
       setActiveStrategyName(strategies[0].name);
     }
   }, [strategies, activeStrategyName]);
 
-  useEffect(() => {
-    const el = tabsScrollRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      // Only intercept vertical wheel inside the tab strip → scroll horizontally.
-      // Trackpad users get native horizontal deltaX, so let it pass.
-      if (e.deltaY !== 0 && e.deltaX === 0) {
-        e.preventDefault();
-        el.scrollLeft += e.deltaY;
+  // Execute Backtest on Backend
+  const handleRunBacktest = async () => {
+    const cleanSymbol = symbol.replace('/', '').toUpperCase();
+    setIsBacktestRunning(true);
+    setError(null);
+
+    // Build strategy params
+    let params: Record<string, any> = {};
+    if (detectedStrategyType === 'SMA_CROSS') {
+      params = {
+        shortPeriod: Number(strategyParams.shortPeriod) || 10,
+        longPeriod: Number(strategyParams.longPeriod) || 30,
+      };
+    } else if (detectedStrategyType === 'RSI') {
+      params = {
+        period: Number(strategyParams.rsiPeriod) || 14,
+        oversold: Number(strategyParams.oversoldThreshold) || 30.0,
+        overbought: Number(strategyParams.overboughtThreshold) || 70.0,
+      };
+    } else if (detectedStrategyType === 'MACD') {
+      params = {
+        shortPeriod: Number(strategyParams.shortPeriod) || 12,
+        longPeriod: Number(strategyParams.longPeriod) || 26,
+        signalPeriod: Number(strategyParams.signalPeriod) || 9,
+      };
+    }
+
+    try {
+      const payload = {
+        symbol: cleanSymbol,
+        timeframe: interval,
+        startTime: `${dateRange[0]}T00:00:00Z`,
+        endTime: `${dateRange[1]}T23:59:59Z`,
+        strategyType: detectedStrategyType,
+        strategyParams: { params },
+        initialCapital: capital,
+        commissionRate: 0.001,
+        slippageRate: 0.0005,
+        positionSizePercent: 100.0,
+      };
+
+      const result = await backtestApi.runBacktest(payload);
+      setBacktestResult(result);
+      if (!expanded) {
+        onExpandPanel?.();
       }
-    };
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, []);
+    } catch (err: any) {
+      console.error('[StrategyBar] Backtest failed:', err);
+      setError(err?.message || 'Failed to run backtest. Make sure Backtest Service is running.');
+    } finally {
+      setIsBacktestRunning(false);
+    }
+  };
+
+  // Convert Backtest Trades from API to Table Records
+  const formattedTrades = useMemo<TradeRecord[]>(() => {
+    if (!backtestResult?.trades) return [];
+
+    return backtestResult.trades.map((t, index) => {
+      // e.g. "1 Long" -> tradeNumber: 1, type: "Long"
+      const parts = t.tradeNumberWithSide.split(' ');
+      const tradeNumber = parseInt(parts[0], 10) || index + 1;
+      const type: 'Long' | 'Short' = parts[1]?.toLowerCase() === 'short' ? 'Short' : 'Long';
+      const signal: 'Entry' | 'Exit' = t.type.toLowerCase().includes('entry') ? 'Entry' : 'Exit';
+      const rawTime = t.dateTime ? Math.floor(new Date(t.dateTime).getTime() / 1000) : undefined;
+
+      return {
+        tradeNumber,
+        date: t.dateTime ? new Date(t.dateTime).toLocaleString('en-US') : '—',
+        rawTime,
+        type,
+        signal,
+        price: Number(t.price) || 0,
+        positionSizeUsd: Number(t.sizeUsd) || 0,
+        tradePnlUsd: Number(t.netPnl) || 0,
+        runUpUsd: Number(t.favorableExcursion) || 0,
+        drawdownUsd: Number(t.adverseExcursion) || 0,
+        cumulativePnlUsd: Number(t.cumulativePnl) || 0,
+      };
+    });
+  }, [backtestResult]);
 
   if (strategies.length === 0) return null;
 
-  const handleViewClick = (key: ViewKey) => {
-    onActiveViewChange?.(key);
-    onSelectView?.(key);
-  };
+  const metrics: MetricsDetail | undefined = backtestResult?.metrics;
 
   return (
     <div className="flex flex-col bg-gray-100 dark:bg-gray-900 select-none h-full min-h-0 text-gray-900 dark:text-gray-100">
-      {/* Row 1: strategy tabs */}
+      {/* Row 1: Strategy Tabs */}
       <div className="h-7.5 flex items-end">
         <div
           ref={tabsScrollRef}
@@ -284,12 +277,8 @@ export function StrategyBar({
                 onClick={() => setActiveStrategyName(s.name)}
                 className={`group flex items-center h-7 px-3 rounded-t-lg -mb-px cursor-pointer shrink-0 transition-all duration-150 border-t border-l border-r ${
                   isActive
-                    ? // Active tab: darker fill + bolder text + bottom border
-                      // matches the row-2 background so the tab visually
-                      // "connects" to the toolbar below it.
-                      'bg-blue-100 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800 text-gray-900 dark:text-gray-100 hover:bg-blue-100 dark:hover:bg-blue-900/40 font-semibold'
-                    : // Inactive tab: subtle, brightens on hover.
-                      'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'
+                    ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800 text-gray-900 dark:text-gray-100 font-semibold'
+                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 font-medium'
                 }`}
                 title={s.name}
               >
@@ -300,9 +289,7 @@ export function StrategyBar({
                       : 'fill-blue-400 text-blue-400 dark:fill-blue-500 dark:text-blue-500'
                   }`}
                 />
-                <span className="text-xs whitespace-nowrap">
-                  {s.name}
-                </span>
+                <span className="text-xs whitespace-nowrap">{s.name}</span>
                 <span
                   role="button"
                   tabIndex={-1}
@@ -310,7 +297,7 @@ export function StrategyBar({
                     e.stopPropagation();
                     onRemove?.(s.name);
                   }}
-                  className="ml-2 size-4 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/80 dark:hover:bg-gray-600/80 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-all duration-150 active:scale-95"
+                  className="ml-2 size-4 flex items-center justify-center text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-200/80 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-all"
                   title="Close strategy"
                 >
                   <X className="size-3" />
@@ -320,49 +307,36 @@ export function StrategyBar({
           })}
         </div>
 
+        {/* Panel controls */}
         <div className="flex items-center gap-1 shrink-0 px-2 pb-0.5">
           {!chartHidden && (expanded ? (
             <button
               onClick={() => onCollapsePanel?.()}
-              className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/80 dark:hover:bg-gray-700/80 rounded-lg transition-all duration-150 active:scale-95 cursor-pointer"
+              className="size-7 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg transition-all"
               title="Collapse strategy panel"
             >
               <ChevronDown className="size-4" />
             </button>
           ) : (
             <button
-              onClick={() => {
-                setCollapsed(false);
-                onExpandPanel?.();
-              }}
-              className="size-7 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/80 dark:hover:bg-gray-700/80 rounded-lg transition-all duration-150 active:scale-95 cursor-pointer"
+              onClick={() => onExpandPanel?.()}
+              className="size-7 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg transition-all"
               title="Expand strategy panel"
             >
               <ChevronUp className="size-4" />
             </button>
           ))}
           <button
-            onClick={() => {
-              if (chartHidden) {
-                onRestorePanel?.();
-                return;
-              }
-              setCollapsed(false);
-              onMaximizePanel?.();
-            }}
-            className={`size-7 flex items-center justify-center rounded-lg transition-all duration-150 active:scale-95 cursor-pointer ${
-              chartHidden
-                ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40'
-                : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200/80 dark:hover:bg-gray-700/80'
-            }`}
-            title={chartHidden ? 'Exit fullscreen' : 'Maximize strategy panel (hide chart)'}
+            onClick={() => (chartHidden ? onRestorePanel?.() : onMaximizePanel?.())}
+            className="size-7 flex items-center justify-center text-gray-500 hover:text-gray-900 dark:hover:text-white rounded-lg transition-all"
+            title={chartHidden ? 'Restore chart' : 'Maximize strategy panel'}
           >
             {chartHidden ? <Minimize2 className="size-3.5" /> : <Maximize className="size-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* Row 2: view toolbar (Metrics / History / Period / Capital) */}
+      {/* Row 2: View Toolbar */}
       <div className="h-9 flex items-center gap-1.5 px-2.5 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-2xs">
         {VIEW_BUTTONS.map(({ key, label, Icon }) => {
           if (key === 'period') {
@@ -370,46 +344,78 @@ export function StrategyBar({
               <div key={key} ref={periodRef} className="relative">
                 <button
                   onClick={() => setPeriodOpen((o) => !o)}
-                  className="h-7 flex items-center gap-1.5 px-2.5 rounded-lg transition-all duration-150 active:scale-[0.98] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/70 cursor-pointer font-medium"
+                  className="h-7 flex items-center gap-1.5 px-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/70 font-medium"
                   title={label}
                 >
                   <Icon className="size-3.5 shrink-0 text-blue-500" />
                   <span className="text-[11px] whitespace-nowrap tabular-nums">
                     {formatDate(dateRange[0])} — {formatDate(dateRange[1])}
                   </span>
-                  <ChevronDown
-                    className={`size-3 shrink-0 transition-transform ${
-                      periodOpen ? 'rotate-180' : ''
-                    }`}
-                  />
+                  <ChevronDown className={`size-3 transition-transform ${periodOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {periodOpen && (
-                  <div className="absolute z-50 left-0 top-full mt-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200/80 dark:border-gray-700/80 rounded-xl shadow-xl p-3.5 min-w-[270px]">
+                  <div className="absolute z-50 left-0 top-full mt-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-3.5 min-w-[270px]">
                     <div className="flex flex-col gap-2.5">
-                      <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <span className="w-14 font-medium">From</span>
+                      <label className="flex items-center justify-between gap-2 text-xs">
+                        <span className="w-14 font-medium text-gray-600 dark:text-gray-300">From</span>
                         <input
                           type="date"
                           value={dateRange[0]}
                           max={dateRange[1]}
-                          onChange={(e) =>
-                            updateDateRange([e.target.value, dateRange[1]])
-                          }
-                          className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 shadow-2xs"
+                          onChange={(e) => updateDateRange([e.target.value, dateRange[1]])}
+                          className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         />
                       </label>
-                      <label className="flex items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
-                        <span className="w-14 font-medium">To</span>
+                      <label className="flex items-center justify-between gap-2 text-xs">
+                        <span className="w-14 font-medium text-gray-600 dark:text-gray-300">To</span>
                         <input
                           type="date"
                           value={dateRange[1]}
                           min={dateRange[0]}
-                          onChange={(e) =>
-                            updateDateRange([dateRange[0], e.target.value])
-                          }
-                          className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 shadow-2xs"
+                          onChange={(e) => updateDateRange([dateRange[0], e.target.value])}
+                          className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                         />
                       </label>
+                      <div className="pt-1.5 flex flex-wrap gap-1.5 border-t border-gray-200 dark:border-gray-700">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const end = new Date();
+                            const start = new Date();
+                            start.setDate(start.getDate() - 30);
+                            updateDateRange([start.toISOString().split('T')[0], end.toISOString().split('T')[0]]);
+                          }}
+                          className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                        >
+                          Last 30D
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const end = new Date();
+                            const start = new Date();
+                            start.setDate(start.getDate() - 90);
+                            updateDateRange([start.toISOString().split('T')[0], end.toISOString().split('T')[0]]);
+                          }}
+                          className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                        >
+                          Last 90D
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateDateRange(['2024-01-01', '2024-06-01'])}
+                          className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                        >
+                          2024 H1
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateDateRange(['2024-01-01', '2024-12-31'])}
+                          className="px-2 py-0.5 rounded text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+                        >
+                          Full 2024
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -425,40 +431,26 @@ export function StrategyBar({
             return (
               <div key={key} ref={capitalRef} className="relative">
                 <button
-                  onClick={() => {
-                    setCapitalOpen((o) => !o);
-                    if (!capitalOpen) setCapitalDraft(String(capital));
-                  }}
-                  className="h-7 flex items-center gap-1.5 px-2.5 rounded-lg transition-all duration-150 active:scale-[0.98] text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/70 cursor-pointer font-medium"
+                  onClick={() => setCapitalOpen((o) => !o)}
+                  className="h-7 flex items-center gap-1.5 px-2.5 rounded-lg text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/70 font-medium"
                   title={label}
                 >
                   <Icon className="size-3.5 shrink-0 text-emerald-500" />
                   <span className="text-[11px] whitespace-nowrap tabular-nums">
                     {formatCapital(capital)} USD
                   </span>
-                  <ChevronDown
-                    className={`size-3 shrink-0 transition-transform ${
-                      capitalOpen ? 'rotate-180' : ''
-                    }`}
-                  />
+                  <ChevronDown className={`size-3 transition-transform ${capitalOpen ? 'rotate-180' : ''}`} />
                 </button>
                 {capitalOpen && (
-                  <div className="absolute z-50 left-0 top-full mt-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200/80 dark:border-gray-700/80 rounded-xl shadow-xl p-3.5 min-w-[240px]">
-                    <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
-                      <span className="w-14 font-medium">Amount</span>
+                  <div className="absolute z-50 left-0 top-full mt-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-3.5 min-w-[240px]">
+                    <label className="flex items-center gap-2 text-xs">
+                      <span className="w-14 font-medium text-gray-600 dark:text-gray-300">Amount</span>
                       <input
                         type="text"
-                        inputMode="numeric"
                         value={capitalDraft}
                         onChange={(e) => setCapitalDraft(e.target.value)}
                         onBlur={commitCapital}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            commitCapital();
-                            setCapitalOpen(false);
-                          }
-                        }}
-                        className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-blue-500 shadow-2xs"
+                        className="flex-1 px-2.5 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                       />
                     </label>
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
@@ -469,10 +461,10 @@ export function StrategyBar({
                             updateCapital(v);
                             setCapitalDraft(String(v));
                           }}
-                          className={`text-[11px] px-2.5 py-1 rounded-lg border transition-all duration-150 active:scale-95 cursor-pointer font-medium ${
+                          className={`text-[11px] px-2.5 py-1 rounded-lg border font-medium ${
                             capital === v
-                              ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 shadow-2xs'
-                              : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600'
+                              ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-300 text-blue-700 dark:text-blue-300'
+                              : 'bg-white dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300'
                           }`}
                         >
                           {formatCapital(v)}
@@ -488,33 +480,265 @@ export function StrategyBar({
           return (
             <button
               key={key}
-              onClick={() => handleViewClick(key)}
-              className={`size-7 flex items-center justify-center rounded-lg transition-all duration-150 active:scale-95 cursor-pointer ${
+              onClick={() => {
+                onActiveViewChange?.(key);
+                onSelectView?.(key);
+              }}
+              className={`h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-xs transition-all ${
                 isActive
-                  ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 font-semibold shadow-2xs'
+                  ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 font-semibold'
                   : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700/70'
               }`}
               title={label}
             >
               <Icon className="size-3.5" />
+              <span>{label}</span>
             </button>
           );
         })}
-        {/* Black "Run" button — sleek modern CTA */}
+
+        {/* Strategy Parameters Settings */}
+        <div ref={paramsRef} className="relative">
+          <button
+            onClick={() => setParamsOpen((o) => !o)}
+            className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700/70 font-medium"
+            title="Configure Strategy Parameters"
+          >
+            <Sliders className="size-3.5 text-purple-500" />
+            <span>Params ({detectedStrategyType})</span>
+          </button>
+
+          {paramsOpen && (
+            <div className="absolute z-50 left-0 top-full mt-1.5 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-3.5 min-w-[260px]">
+              <div className="text-xs font-semibold mb-2.5 text-gray-800 dark:text-gray-200">
+                {detectedStrategyType} Settings
+              </div>
+              {detectedStrategyType === 'SMA_CROSS' && (
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-300">Fast SMA Period</span>
+                    <input
+                      type="number"
+                      value={strategyParams.shortPeriod || 10}
+                      onChange={(e) =>
+                        setStrategyParams((p) => ({ ...p, shortPeriod: parseInt(e.target.value) || 10 }))
+                      }
+                      className="w-20 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-300">Slow SMA Period</span>
+                    <input
+                      type="number"
+                      value={strategyParams.longPeriod || 30}
+                      onChange={(e) =>
+                        setStrategyParams((p) => ({ ...p, longPeriod: parseInt(e.target.value) || 30 }))
+                      }
+                      className="w-20 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+                    />
+                  </label>
+                </div>
+              )}
+              {detectedStrategyType === 'RSI' && (
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-300">RSI Period</span>
+                    <input
+                      type="number"
+                      value={strategyParams.rsiPeriod || 14}
+                      onChange={(e) =>
+                        setStrategyParams((p) => ({ ...p, rsiPeriod: parseInt(e.target.value) || 14 }))
+                      }
+                      className="w-20 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-300">Oversold Level</span>
+                    <input
+                      type="number"
+                      value={strategyParams.oversoldThreshold || 30}
+                      onChange={(e) =>
+                        setStrategyParams((p) => ({ ...p, oversoldThreshold: parseFloat(e.target.value) || 30 }))
+                      }
+                      className="w-20 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-300">Overbought Level</span>
+                    <input
+                      type="number"
+                      value={strategyParams.overboughtThreshold || 70}
+                      onChange={(e) =>
+                        setStrategyParams((p) => ({ ...p, overboughtThreshold: parseFloat(e.target.value) || 70 }))
+                      }
+                      className="w-20 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+                    />
+                  </label>
+                </div>
+              )}
+              {detectedStrategyType === 'MACD' && (
+                <div className="flex flex-col gap-2">
+                  <label className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-300">Fast EMA</span>
+                    <input
+                      type="number"
+                      value={strategyParams.shortPeriod || 12}
+                      onChange={(e) =>
+                        setStrategyParams((p) => ({ ...p, shortPeriod: parseInt(e.target.value) || 12 }))
+                      }
+                      className="w-20 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-300">Slow EMA</span>
+                    <input
+                      type="number"
+                      value={strategyParams.longPeriod || 26}
+                      onChange={(e) =>
+                        setStrategyParams((p) => ({ ...p, longPeriod: parseInt(e.target.value) || 26 }))
+                      }
+                      className="w-20 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600 dark:text-gray-300">Signal Period</span>
+                    <input
+                      type="number"
+                      value={strategyParams.signalPeriod || 9}
+                      onChange={(e) =>
+                        setStrategyParams((p) => ({ ...p, signalPeriod: parseInt(e.target.value) || 9 }))
+                      }
+                      className="w-20 px-2 py-0.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-right"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Run Backtest CTA */}
         <button
           type="button"
-          onClick={onRunBacktest}
-          disabled={!onRunBacktest || running}
-          className="ml-auto h-7 px-3.5 flex items-center gap-1.5 bg-gray-900 dark:bg-white hover:bg-black dark:hover:bg-gray-100 disabled:bg-gray-400 dark:disabled:bg-gray-600 disabled:cursor-not-allowed text-white dark:text-gray-900 rounded-lg text-[11px] font-semibold shadow-2xs hover:shadow transition-all duration-150 active:scale-[0.98] cursor-pointer"
-          title="Run backtest"
+          onClick={handleRunBacktest}
+          disabled={isBacktestRunning}
+          className="ml-auto h-7 px-4 flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg text-xs font-semibold shadow-xs transition-all cursor-pointer"
+          title="Run Microservice Backtest"
         >
-          <Play className="size-3 fill-current" />
-          <span>{running ? 'Running…' : 'Run'}</span>
+          {isBacktestRunning ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Play className="size-3 fill-current" />
+          )}
+          <span>{isBacktestRunning ? 'Simulating…' : 'Run Backtest'}</span>
         </button>
       </div>
 
-      {/* Row 3: history table (visible only while the History icon is active) */}
-      {activeView === 'history' && <TradeHistoryTable trades={trades} />}
+      {/* Error notification */}
+      {error && (
+        <div className="px-4 py-2 bg-red-50 dark:bg-red-950/60 border-t border-red-200 dark:border-red-900 text-xs text-red-600 dark:text-red-400 flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="text-red-500 hover:text-red-700">
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Row 3: Content Body */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        {activeView === 'history' && (
+          <TradeHistoryTable trades={formattedTrades} onSelectTrade={setSelectedTradeTime} />
+        )}
+
+        {activeView === 'metrics' && (
+          <div className="p-4 overflow-y-auto">
+            {!metrics ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3 text-center text-gray-500 dark:text-gray-400">
+                <Zap className="size-8 text-amber-500" />
+                <div className="text-sm font-medium">Ready to run backtest simulation</div>
+                <div className="text-xs max-w-sm">
+                  Click the <b>Run Backtest</b> button above to execute this strategy against historical data from Binance.
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                {/* Net Profit */}
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Total Return</div>
+                  <div
+                    className={`text-lg font-bold mt-1 tabular-nums ${
+                      metrics.totalReturnPercent >= 0
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {metrics.totalReturnPercent >= 0 ? '+' : ''}
+                    {formatNum(metrics.totalReturnPercent)}%
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5 tabular-nums">
+                    Final: ${formatNum(metrics.finalBalance)}
+                  </div>
+                </div>
+
+                {/* Win Rate */}
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Win Rate</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">
+                    {formatNum(metrics.winRate)}%
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    {metrics.winningTrades}W / {metrics.losingTrades}L
+                  </div>
+                </div>
+
+                {/* Profit Factor */}
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Profit Factor</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">
+                    {formatNum(metrics.profitFactor)}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    Avg W/L: {formatNum(metrics.rewardRiskRatio)}
+                  </div>
+                </div>
+
+                {/* Max Drawdown */}
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Max Drawdown</div>
+                  <div className="text-lg font-bold text-red-600 dark:text-red-400 mt-1 tabular-nums">
+                    {formatNum(metrics.maxDrawdown)}%
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    Recovery: {formatNum(metrics.recoveryFactor)}
+                  </div>
+                </div>
+
+                {/* Sharpe & Sortino */}
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Sharpe / Sortino</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">
+                    {formatNum(metrics.sharpeRatio)} / {formatNum(metrics.sortinoRatio)}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    Calmar: {formatNum(metrics.calmarRatio)}
+                  </div>
+                </div>
+
+                {/* Total Trades */}
+                <div className="bg-white dark:bg-gray-800 p-3 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xs">
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Total Trades</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100 mt-1 tabular-nums">
+                    {metrics.totalTrades}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">
+                    Best: +${formatNum(metrics.bestTrade)}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

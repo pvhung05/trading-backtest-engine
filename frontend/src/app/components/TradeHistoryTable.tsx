@@ -69,6 +69,7 @@ const SCALE = {
 export interface TradeRecord {
   tradeNumber: number;
   date: string;
+  rawTime?: number;
   type: 'Long' | 'Short';
   signal: 'Entry' | 'Exit';
   price: number;
@@ -93,6 +94,7 @@ interface TradePair {
 
 interface TradeHistoryTableProps {
   trades: TradeRecord[];
+  onSelectTrade?: (timeSec: number) => void;
 }
 
 const POSITIVE = '#16A34A';
@@ -117,7 +119,7 @@ function fmtPctSigned(v: number) {
   return `${sign}${Math.abs(v).toFixed(2)}%`;
 }
 
-export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
+export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTableProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   // Latest committed scale tier, kept in a ref so the ResizeObserver
@@ -153,6 +155,7 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
     }
     return out;
   }, [trades]);
+
 
   useEffect(() => {
     const root = rootRef.current;
@@ -359,13 +362,21 @@ export function TradeHistoryTable({ trades }: TradeHistoryTableProps) {
               boxSizing: 'border-box',
             };
 
+            const clickTime = entry.rawTime || exit.rawTime;
+
             return (
               <div
                 key={tradeNumber}
-                className={`relative grid items-start transition-[column-gap] duration-150 ease-out ${
+                onClick={() => {
+                  if (clickTime && onSelectTrade) {
+                    onSelectTrade(clickTime);
+                  }
+                }}
+                className={`relative grid items-start transition-[column-gap,background-color] duration-150 ease-out cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750 ${
                   showBottomBorder ? 'border-b border-gray-200 dark:border-gray-700' : ''
                 }`}
                 style={{ gridTemplateColumns: COL_TEMPLATE, columnGap: S.colGap }}
+                title="Click to jump to this trade on the chart"
               >
                 {/* Trade # + side — spans both rows. */}
                 <div

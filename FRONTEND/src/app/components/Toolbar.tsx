@@ -83,11 +83,10 @@ export function TopToolbar({
   userName?: string;
   onLogout?: () => void;
 }) {
-  const [interval, setInterval] = useState('1d');
+  const { symbol, interval, setInterval } = useOHLCV();
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
   const [strategiesOpen, setStrategiesOpen] = useState(false);
   const [myScriptsOpen, setMyScriptsOpen] = useState(false);
-  const { symbol } = useOHLCV();
 
   return (
     <>

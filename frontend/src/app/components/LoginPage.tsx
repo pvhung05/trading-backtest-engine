@@ -13,59 +13,68 @@ import {
 
 type Mode = 'login' | 'register';
 
-/**
- * Pre-auth landing page. Two stacked forms in one card so the user
- * can either sign in or create an account. We don't talk to a backend
- * yet — `useAuth().login`/`register` just stash the typed values in
- * localStorage. The "real" validation/routing lives behind those
- * callbacks so swapping in a server later is a one-file change.
- */
 export function LoginPage() {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<Mode>('login');
 
-  // Shared fields. Kept in component state because the inputs are
-  // uncontrolled-ish: we only read them on submit, so we don't need a
-  // controlled-input re-render on every keystroke.
-  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // Lightweight validation — we're not enforcing password rules yet,
-    // but the inputs need *something* typed in. Backend validation
-    // will replace this once we wire one up.
-    if (mode === 'register' && !name.trim()) {
-      setError('Please enter your name.');
+    const trimmedUser = username.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedUser) {
+      setError('Please enter your username.');
       return;
     }
-    if (!email.trim()) {
+
+    if (mode === 'register' && !trimmedEmail) {
       setError('Please enter your email.');
       return;
     }
+
     if (!password) {
       setError('Please enter your password.');
       return;
     }
 
-    // Tiny artificial delay so the spinner is visible — gives the page
-    // a bit of life. 300ms is short enough to feel instant.
+    if (mode === 'register' && password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+
     setBusy(true);
-    window.setTimeout(() => {
+
+    try {
       if (mode === 'register') {
-        register({ name, email });
+        await register({
+          username: trimmedUser,
+          email: trimmedEmail,
+          password,
+        });
       } else {
-        // Login uses whatever the user typed, falling back to the
-        // email's local-part so the toolbar always has a name to show.
-        login({ name, email });
+        await login({
+          username: trimmedUser,
+          password,
+        });
       }
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      const msg =
+        err?.message ||
+        (err?.errors ? Object.values(err.errors).join(', ') : null) ||
+        'Authentication failed. Please check your credentials or backend server.';
+      setError(msg);
+    } finally {
       setBusy(false);
-    }, 300);
+    }
   };
 
   const switchMode = (next: Mode) => {
@@ -74,10 +83,9 @@ export function LoginPage() {
   };
 
   return (
-    <div className="size-full flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-blue-50 font-sans">
+    <div className="size-full flex items-center justify-center bg-gradient-to-br from-gray-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950 font-sans">
       <div className="w-full max-w-md px-4">
-        {/* Brand mark — mirrors the top-left of the trading app so the
-            handoff feels continuous rather than a totally separate site. */}
+        {/* Brand mark */}
         <div className="flex items-center justify-center gap-3 mb-6">
           <div className="size-11 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-md">
             <TrendingUp className="size-5 text-white" />
@@ -88,20 +96,20 @@ export function LoginPage() {
           </div>
         </div>
 
-        <Card className="shadow-xl border-gray-200/80 dark:border-gray-700/80 rounded-2xl backdrop-blur-sm">
+        <Card className="shadow-xl border-gray-200/80 dark:border-gray-700/80 rounded-2xl backdrop-blur-sm bg-white/90 dark:bg-gray-850/90">
           <CardHeader className="pb-4">
             <CardTitle className="text-xl font-bold text-gray-900 dark:text-gray-100">
               {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </CardTitle>
             <CardDescription className="text-sm text-gray-500 dark:text-gray-400">
               {mode === 'login'
-                ? 'Sign in to access your backtest workspace.'
-                : 'Set up an account to start running backtests.'}
+                ? 'Sign in to access your trading & backtest workspace.'
+                : 'Set up an account on the Trading Engine microservices.'}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            {/* Tab switcher. Styled as a modern segmented control. */}
+            {/* Tab switcher */}
             <div className="grid grid-cols-2 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl mb-5 text-sm">
               <button
                 type="button"
@@ -130,40 +138,42 @@ export function LoginPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Username</span>
+                <div className="relative">
+                  <User className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    type="text"
+                    autoComplete="username"
+                    placeholder="trader01"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="pl-8"
+                    required
+                  />
+                </div>
+              </label>
+
               {mode === 'register' && (
                 <label className="flex flex-col gap-1.5">
-                  <span className="text-xs font-medium text-gray-600">Full name</span>
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Email</span>
                   <div className="relative">
-                    <User className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <Mail className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                     <Input
-                      type="text"
-                      autoComplete="name"
-                      placeholder="Jane Doe"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
+                      type="email"
+                      autoComplete="email"
+                      placeholder="trader01@gmail.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
                       className="pl-8"
+                      required
                     />
                   </div>
                 </label>
               )}
 
               <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-gray-600">Email</span>
-                <div className="relative">
-                  <Mail className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <Input
-                    type="email"
-                    autoComplete="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-              </label>
-
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium text-gray-600">Password</span>
+                <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Password</span>
                 <div className="relative">
                   <Lock className="size-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
                   <Input
@@ -173,12 +183,13 @@ export function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-8"
+                    required
                   />
                 </div>
               </label>
 
               {error && (
-                <div className="text-xs text-red-600 bg-red-50 border border-red-100 rounded px-2.5 py-1.5">
+                <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-lg p-2.5 break-words">
                   {error}
                 </div>
               )}
@@ -186,32 +197,30 @@ export function LoginPage() {
               <Button
                 type="submit"
                 disabled={busy}
-                className="h-9 mt-1 font-semibold"
+                className="h-9 mt-1 font-semibold cursor-pointer"
               >
                 {busy ? (
                   <>
-                    <Loader2 className="size-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin mr-1.5" />
                     {mode === 'login' ? 'Signing in…' : 'Creating account…'}
                   </>
                 ) : mode === 'login' ? (
                   <>
-                    <LogIn className="size-4" />
+                    <LogIn className="size-4 mr-1.5" />
                     Login
                   </>
                 ) : (
                   <>
-                    <UserPlus className="size-4" />
+                    <UserPlus className="size-4 mr-1.5" />
                     Create account
                   </>
                 )}
               </Button>
             </form>
 
-            <p className="text-[11px] text-gray-400 text-center mt-4 leading-relaxed">
-              {mode === 'login'
-                ? 'No real account needed — anything you type will sign you in.'
-                : 'No verification email will be sent. You stay signed in on this device.'}
-            </p>
+            <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-400 dark:text-gray-500 text-center">
+              Connected to API Gateway at <span className="font-mono text-gray-500 dark:text-gray-400">http://localhost:8080</span>
+            </div>
           </CardContent>
         </Card>
       </div>

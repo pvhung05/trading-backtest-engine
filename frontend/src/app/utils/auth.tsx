@@ -1,78 +1,133 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { getItem, setItem, removeItem } from './persistence';
+import { authApi, type UserResponse, type LoginPayload, type RegisterPayload } from '../services/authApi';
+import { getAuthToken, setAuthToken } from '../services/apiClient';
 
 export interface AuthUser {
-  // Display name shown in the toolbar (e.g. "Trader", or a name typed
-  // in the registration form). We never validate it — there is no real
-  // account — but we keep it around so the UI feels less anonymous.
+  id?: number;
   name: string;
-  // Email typed during registration/login. Optional, not validated.
   email?: string;
-  // Timestamp of the most recent login. Useful for "Last seen" and to
-  // age out the session if we ever need to.
+  role?: string;
   loggedInAt: number;
-}
-
-interface PersistedAuth {
-  user: AuthUser;
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
-  // Stand-in for a real backend. We accept whatever the user types and
-  // stash it in localStorage so reloads stay logged in.
-  login: (input: { name?: string; email?: string }) => void;
-  // Same as `login` for now — we don't actually create an account, we
-  // just log the user in. Kept as a separate verb so that wiring up a
-  // real backend later only requires changing the body of these two
-  // functions.
-  register: (input: { name: string; email: string }) => void;
+  loading: boolean;
+  login: (input: LoginPayload) => Promise<void>;
+  register: (input: RegisterPayload) => Promise<void>;
   logout: () => void;
 }
 
-const AUTH_KEY = 'trading-app-auth';
+const AUTH_USER_KEY = 'trading-app-user';
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Synchronous initial read avoids a flash of the login page on reload
-  // for users that are already authenticated.
   const [user, setUser] = useState<AuthUser | null>(() => {
-    const saved = getItem<PersistedAuth | null>(AUTH_KEY, null);
-    return saved?.user ?? null;
-  });
-
-  // Persist the session so a reload (or browser restart) keeps the user
-  // logged in. We only write when the value actually changes.
-  useEffect(() => {
-    if (user) {
-      setItem<PersistedAuth>(AUTH_KEY, { user });
-    } else {
-      removeItem(AUTH_KEY);
+    const raw = localStorage.getItem(AUTH_USER_KEY);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
     }
-  }, [user]);
+  });
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Validate token on mount with safety timeout
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) {
+      setUser(null);
+      localStorage.removeItem(AUTH_USER_KEY);
+      setLoading(false);
+      return;
+    }
+
+    let isDone = false;
+    const safetyTimeout = setTimeout(() => {
+      if (!isDone) {
+        isDone = true;
+        setLoading(false);
+      }
+    }, 2500);
+
+    authApi
+      .getMe()
+      .then((me: UserResponse) => {
+        if (isDone) return;
+        isDone = true;
+        clearTimeout(safetyTimeout);
+        const authUser: AuthUser = {
+          id: me.id,
+          name: me.username,
+          email: me.email,
+          role: me.role,
+          loggedInAt: Date.now(),
+        };
+        setUser(authUser);
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+      })
+      .catch((err) => {
+        if (isDone) return;
+        isDone = true;
+        clearTimeout(safetyTimeout);
+        console.warn('Session verification failed, logging out:', err);
+        setUser(null);
+        setAuthToken(null);
+        localStorage.removeItem(AUTH_USER_KEY);
+      })
+      .finally(() => {
+        clearTimeout(safetyTimeout);
+        setLoading(false);
+      });
+
+    return () => {
+      clearTimeout(safetyTimeout);
+    };
+  }, []);
+
+  const login = async (input: LoginPayload) => {
+    const res = await authApi.login(input);
+    const authUser: AuthUser = {
+      id: res.user?.id,
+      name: res.user?.username || input.username,
+      email: res.user?.email,
+      role: res.user?.role,
+      loggedInAt: Date.now(),
+    };
+    setUser(authUser);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+  };
+
+  const register = async (input: RegisterPayload) => {
+    const res = await authApi.register(input);
+    const authUser: AuthUser = {
+      id: res.user?.id,
+      name: res.user?.username || input.username,
+      email: res.user?.email || input.email,
+      role: res.user?.role,
+      loggedInAt: Date.now(),
+    };
+    setUser(authUser);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(authUser));
+  };
+
+  const logout = () => {
+    authApi.logout();
+    setUser(null);
+    localStorage.removeItem(AUTH_USER_KEY);
+  };
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      login: ({ name, email }) => {
-        const fallbackName = name?.trim() || email?.split('@')[0] || 'Trader';
-        setUser({
-          name: fallbackName,
-          email: email?.trim() || undefined,
-          loggedInAt: Date.now(),
-        });
-      },
-      register: ({ name, email }) => {
-        setUser({
-          name: name.trim() || 'Trader',
-          email: email.trim() || undefined,
-          loggedInAt: Date.now(),
-        });
-      },
-      logout: () => setUser(null),
+      loading,
+      login,
+      register,
+      logout,
     }),
-    [user]
+    [user, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

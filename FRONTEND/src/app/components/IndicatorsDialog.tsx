@@ -1,93 +1,87 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search, X, ChevronRight } from 'lucide-react';
+import { Search, X, ChevronRight, Zap } from 'lucide-react';
 
-type TabKey = 'indicators' | 'strategies' | 'my-scripts';
+export type TabKey = 'indicators' | 'strategies' | 'my-scripts';
 
-interface Indicator {
+export interface IndicatorItem {
   name: string;
   badge?: 'NEW' | 'BETA';
+  strategyType?: 'SMA_CROSS' | 'RSI' | 'MACD';
+  description?: string;
 }
 
-const DATA: Record<string, Indicator[]> = {
+const DATA: Record<string, IndicatorItem[]> = {
   // Built-in (Indicators tab)
   'technicals': [
-    { name: '24-hour Volume' },
-    { name: 'Accumulation/Distribution' },
-    { name: 'Advance Decline Line' },
-    { name: 'Advance Decline Ratio' },
-    { name: 'Advance/Decline Ratio (Bars)' },
-    { name: 'Arnaud Legoux Moving Average' },
-    { name: 'Aroon' },
-    { name: 'Aroon Oscillator', badge: 'NEW' },
-    { name: 'Auto Fib Extension' },
-    { name: 'Auto Fib Retracement' },
-    { name: 'Auto Key Levels', badge: 'BETA' },
-    { name: 'Auto Pitchfork' },
-    { name: 'Auto Trendlines', badge: 'BETA' },
+    { name: 'Simple Moving Average (SMA)' },
+    { name: 'Relative Strength Index (RSI)' },
+    { name: 'Moving Average Convergence Divergence (MACD)' },
+    { name: 'Exponential Moving Average (EMA)' },
+    { name: 'Bollinger Bands' },
+    { name: 'Volume Profile' },
+    { name: 'Average True Range (ATR)' },
+    { name: 'Stochastic Oscillator' },
   ],
   'fundamentals': [
-    { name: 'Earnings Per Share' },
-    { name: 'Price/Earnings Ratio' },
-    { name: 'Dividend Yield' },
+    { name: '24h Market Volume' },
+    { name: 'Order Book Depth' },
+    { name: 'Liquidity Heatmap' },
   ],
-  // Community (Strategies tab)
-  'editors-picks': [
-    { name: 'VWAP Pro', badge: 'NEW' },
-    { name: 'Order Flow Heatmap' },
+  // Backend Engine Supported Strategies (Strategies tab)
+  'engine-strategies': [
+    {
+      name: 'SMA Cross Strategy',
+      badge: 'NEW',
+      strategyType: 'SMA_CROSS',
+      description: 'Dual Simple Moving Average crossover strategy (Fast & Slow).',
+    },
+    {
+      name: 'RSI Strategy',
+      badge: 'NEW',
+      strategyType: 'RSI',
+      description: 'Mean-reversion momentum strategy with Oversold/Overbought thresholds.',
+    },
+    {
+      name: 'MACD Crossover',
+      strategyType: 'MACD',
+      description: 'Trend-following momentum strategy using MACD line & signal line.',
+    },
   ],
-  'top': [
-    { name: 'RSI Strategy' },
-    { name: 'MACD Crossover' },
-    { name: 'Bollinger Breakout' },
-  ],
-  'trending': [
-    { name: 'SuperTrend Strategy' },
+  'community': [
+    { name: 'Bollinger Breakout Strategy' },
+    { name: 'SuperTrend Trend Tracker' },
     { name: 'Ichimoku Cloud System' },
-    { name: 'Stochastic RSI Pro' },
-  ],
-  'store': [
-    { name: 'Elite Trader Suite', badge: 'NEW' },
-    { name: 'AI Pattern Recognition' },
   ],
   // Personal (My Scripts tab)
   'my-scripts': [
-    { name: 'My Custom RSI' },
-    { name: 'Volume Spike Detector' },
-  ],
-  'purchased': [
-    { name: 'Premium MACD Pack' },
-    { name: 'Smart Money Concepts' },
+    { name: 'Custom Quantitative Momentum' },
+    { name: 'Grid Trading Algorithm' },
   ],
 };
 
 const TAB_SECTIONS: Record<TabKey, { title: string; items: { key: string; label: string }[] }[]> = {
   'indicators': [
     {
-      title: 'Built-in',
+      title: 'Built-in Indicators',
       items: [
-        { key: 'technicals', label: 'Technicals' },
-        { key: 'fundamentals', label: 'Fundamentals' },
+        { key: 'technicals', label: 'Technical Indicators' },
+        { key: 'fundamentals', label: 'Market Stats' },
       ],
     },
   ],
   'strategies': [
     {
-      title: 'Community',
+      title: 'Backtest Engine Strategies',
       items: [
-        { key: 'editors-picks', label: 'Editors\' picks' },
-        { key: 'top', label: 'Top' },
-        { key: 'trending', label: 'Trending' },
-        { key: 'store', label: 'Store' },
+        { key: 'engine-strategies', label: 'Microservice Strategies (Live Backtest)' },
+        { key: 'community', label: 'Other Presets' },
       ],
     },
   ],
   'my-scripts': [
     {
-      title: 'Personal',
-      items: [
-        { key: 'my-scripts', label: 'My scripts' },
-        { key: 'purchased', label: 'Purchased' },
-      ],
+      title: 'Custom Scripts',
+      items: [{ key: 'my-scripts', label: 'My Saved Strategies' }],
     },
   ],
 };
@@ -101,14 +95,25 @@ const TAB_LABELS: Record<TabKey, string> = {
 interface IndicatorsDialogProps {
   open: boolean;
   onClose: () => void;
-  onSelect?: (indicator: Indicator) => void;
+  onSelect?: (indicator: IndicatorItem) => void;
   initialTab?: TabKey;
 }
 
-export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indicators' }: IndicatorsDialogProps) {
+export function IndicatorsDialog({
+  open,
+  onClose,
+  onSelect,
+  initialTab = 'indicators',
+}: IndicatorsDialogProps) {
   const [tab, setTab] = useState<TabKey>(initialTab);
   const [query, setQuery] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setTab(initialTab);
+    }
+  }, [open, initialTab]);
 
   useEffect(() => {
     if (!open) return;
@@ -117,7 +122,6 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
-  // Khi đổi tab → reset query
   useEffect(() => {
     setQuery('');
   }, [tab]);
@@ -127,8 +131,10 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
   const sections = TAB_SECTIONS[tab];
   const sectionKeys = sections.flatMap((s) => s.items.map((i) => i.key));
   const indicators = sectionKeys.flatMap((k) => DATA[k] ?? []);
-  const filtered = indicators.filter((i) =>
-    i.name.toLowerCase().includes(query.toLowerCase())
+  const filtered = indicators.filter(
+    (i) =>
+      i.name.toLowerCase().includes(query.toLowerCase()) ||
+      (i.description && i.description.toLowerCase().includes(query.toLowerCase()))
   );
 
   return (
@@ -191,17 +197,16 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
 
         {/* Body */}
         <div className="flex-1 overflow-hidden">
-          {/* List */}
           <div className="h-full overflow-y-auto px-6 py-3">
             <div className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">
-              Script name
+              Available Scripts & Strategies
             </div>
             {filtered.length === 0 ? (
               <div className="py-12 text-center text-sm text-gray-400 dark:text-gray-500">
                 No results match "{query}"
               </div>
             ) : (
-              <ul className="space-y-0.5">
+              <ul className="space-y-1">
                 {filtered.map((ind) => (
                   <li
                     key={ind.name}
@@ -209,17 +214,36 @@ export function IndicatorsDialog({ open, onClose, onSelect, initialTab = 'indica
                       onSelect?.(ind);
                       onClose();
                     }}
-                    className="group flex items-center justify-between py-2 px-3 rounded-lg cursor-pointer hover:bg-gray-100/80 dark:hover:bg-gray-700/60 transition-all duration-150 active:scale-[0.99]"
+                    className="group flex items-center justify-between py-2.5 px-3 rounded-xl cursor-pointer hover:bg-gray-100/80 dark:hover:bg-gray-700/60 transition-all duration-150 active:scale-[0.99]"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{ind.name}</span>
-                      {ind.badge && (
-                        <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                          ind.badge === 'NEW'
-                            ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/40'
-                            : 'bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40'
-                        }`}>
-                          {ind.badge}
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        {ind.strategyType && (
+                          <Zap className="size-3.5 text-amber-500 fill-amber-500" />
+                        )}
+                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                          {ind.name}
+                        </span>
+                        {ind.badge && (
+                          <span
+                            className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded-full ${
+                              ind.badge === 'NEW'
+                                ? 'bg-orange-100 dark:bg-orange-950/60 text-orange-600 dark:text-orange-400 border border-orange-200 dark:border-orange-800/40'
+                                : 'bg-purple-100 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/40'
+                            }`}
+                          >
+                            {ind.badge}
+                          </span>
+                        )}
+                        {ind.strategyType && (
+                          <span className="text-[10px] font-mono bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200/50 dark:border-blue-800/40">
+                            BACKTEST READY
+                          </span>
+                        )}
+                      </div>
+                      {ind.description && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {ind.description}
                         </span>
                       )}
                     </div>

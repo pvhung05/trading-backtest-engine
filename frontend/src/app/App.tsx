@@ -13,6 +13,7 @@ import { StrategyBar } from './components/StrategyBar';
 import { OHLCVProvider } from './components/OHLCVContext';
 import { LoginPage } from './components/LoginPage';
 import { ThemeProvider } from './components/ThemeContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { getItem, setItem } from './utils/persistence';
 import { AuthProvider, useAuth } from './utils/auth';
@@ -30,12 +31,12 @@ interface PersistedAppState {
 }
 
 const DEFAULT_APP_STATE: PersistedAppState = {
-  selectedIndicators: [],
-  selectedStrategies: [],
+  selectedIndicators: [{ name: 'Simple Moving Average (SMA)' }],
+  selectedStrategies: [{ name: 'SMA Cross Strategy', badge: 'NEW' }],
   activeView: 'metrics',
   activeTimeframe: '1D',
-  dateRange: ['2011-08-15', '2026-06-29'],
-  capital: 1_000_000,
+  dateRange: ['2024-01-01', '2024-06-01'],
+  capital: 10_000,
   chartHidden: false,
 };
 
@@ -44,9 +45,17 @@ const STORAGE_KEY = 'trading-app-state';
 function loadAppState(): PersistedAppState {
   const saved = getItem<PersistedAppState | null>(STORAGE_KEY, null);
   if (!saved) return DEFAULT_APP_STATE;
+
+  // Sanitize obsolete or out-of-range dates from previous localStorage
+  let range = saved.dateRange;
+  if (!range || !range[0] || range[0] < '2020-01-01' || range[1] > '2025-12-31') {
+    range = ['2024-01-01', '2024-06-01'];
+  }
+
   return {
     ...DEFAULT_APP_STATE,
     ...saved,
+    dateRange: range,
   };
 }
 
@@ -68,7 +77,17 @@ export default function App() {
  * post-login.
  */
 function AppGate() {
-  const { user, logout } = useAuth();
+  const { user, loading, logout } = useAuth();
+  if (loading) {
+    return (
+      <div className="size-full flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-500">
+        <div className="flex items-center gap-2 text-sm font-medium">
+          <div className="size-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <span>Authenticating session…</span>
+        </div>
+      </div>
+    );
+  }
   if (!user) return <LoginPage />;
   return <AppShell userName={user.name} onLogout={logout} />;
 }
@@ -284,20 +303,22 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
                         onCollapse={() => setChartHidden(true)}
                       >
                         <div className="h-full">
-                          <TradingChart
-                            selectedIndicators={selectedIndicators}
-                            hiddenIndicators={effectiveHiddenIndicators}
-                            onToggleIndicatorVisibility={handleToggleIndicatorVisibility}
-                            onRemoveIndicator={handleRemoveIndicator}
-                            allIndicatorsHidden={allIndicatorsHidden}
-                            onToggleAllIndicators={handleToggleAllIndicators}
-                            selectedStrategies={selectedStrategies}
-                            hiddenStrategies={effectiveHiddenStrategies}
-                            onToggleStrategyVisibility={handleToggleStrategyVisibility}
-                            onRemoveStrategy={handleRemoveStrategy}
-                            allStrategiesHidden={allStrategiesHidden}
-                            onToggleAllStrategies={handleToggleAllStrategies}
-                          />
+                          <ErrorBoundary fallbackTitle="Chart Error">
+                            <TradingChart
+                              selectedIndicators={selectedIndicators}
+                              hiddenIndicators={effectiveHiddenIndicators}
+                              onToggleIndicatorVisibility={handleToggleIndicatorVisibility}
+                              onRemoveIndicator={handleRemoveIndicator}
+                              allIndicatorsHidden={allIndicatorsHidden}
+                              onToggleAllIndicators={handleToggleAllIndicators}
+                              selectedStrategies={selectedStrategies}
+                              hiddenStrategies={effectiveHiddenStrategies}
+                              onToggleStrategyVisibility={handleToggleStrategyVisibility}
+                              onRemoveStrategy={handleRemoveStrategy}
+                              allStrategiesHidden={allStrategiesHidden}
+                              onToggleAllStrategies={handleToggleAllStrategies}
+                            />
+                          </ErrorBoundary>
                         </div>
                       </Panel>
 
