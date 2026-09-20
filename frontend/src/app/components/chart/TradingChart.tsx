@@ -684,13 +684,19 @@ export function TradingChart({
       }
     });
 
+    let resizeRafId: number | null = null;
     const handleResize = () => {
-      if (containerRef.current) {
-        chart.applyOptions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight,
-        });
-      }
+      if (resizeRafId !== null) return;
+      resizeRafId = requestAnimationFrame(() => {
+        resizeRafId = null;
+        if (containerRef.current && chartRef.current) {
+          const width = containerRef.current.clientWidth;
+          const height = containerRef.current.clientHeight;
+          if (width > 0 && height > 0) {
+            chartRef.current.applyOptions({ width, height });
+          }
+        }
+      });
     };
 
     window.addEventListener('resize', handleResize);
@@ -702,6 +708,7 @@ export function TradingChart({
     return () => {
       if (crosshairRafId !== null) cancelAnimationFrame(crosshairRafId);
       if (rangeRafId !== null) cancelAnimationFrame(rangeRafId);
+      if (resizeRafId !== null) cancelAnimationFrame(resizeRafId);
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
       indicatorSeriesMapRef.current.clear();

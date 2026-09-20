@@ -447,7 +447,7 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
                 </div>
               </Panel>
 
-              <PanelResizeHandle className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors" />
+              <PanelResizeHandle className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 active:bg-blue-600 dark:hover:bg-blue-500 dark:active:bg-blue-600 cursor-col-resize transition-colors relative after:absolute after:inset-y-0 after:-left-1.5 after:-right-1.5 after:z-30" />
 
               <Panel defaultSize={18} minSize={0} maxSize={40} collapsible>
                 <ErrorBoundary fallbackTitle="Watchlist Error">

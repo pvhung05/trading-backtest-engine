@@ -165,18 +165,26 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
     if (!root || typeof ResizeObserver === 'undefined') return;
 
     const SCROLLBAR_GUTTER = 6;
+    let scaleRafId: number | null = null;
     const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const inner = Math.max(0, entry.contentRect.width - SCROLLBAR_GUTTER);
-        const next = pickScale(inner, scaleRef.current);
-        if (next !== scaleRef.current) {
-          scaleRef.current = next;
-          setScale(next);
+      if (scaleRafId !== null) return;
+      scaleRafId = requestAnimationFrame(() => {
+        scaleRafId = null;
+        for (const entry of entries) {
+          const inner = Math.max(0, entry.contentRect.width - SCROLLBAR_GUTTER);
+          const next = pickScale(inner, scaleRef.current);
+          if (next !== scaleRef.current) {
+            scaleRef.current = next;
+            setScale(next);
+          }
         }
-      }
+      });
     });
     ro.observe(root);
-    return () => ro.disconnect();
+    return () => {
+      if (scaleRafId !== null) cancelAnimationFrame(scaleRafId);
+      ro.disconnect();
+    };
   }, []);
 
   useEffect(() => {
@@ -249,7 +257,7 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
       <div className="flex-1 min-h-0 overflow-x-auto flex flex-col">
         {/* Sticky Header */}
         <div
-          className="sticky top-0 z-10 grid items-center border-b border-gray-200 dark:border-gray-700 bg-gray-50/90 dark:bg-gray-850/90 backdrop-blur-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0 transition-[column-gap] duration-150 ease-out"
+          className="sticky top-0 z-10 grid items-center border-b border-gray-200 dark:border-gray-700 bg-gray-50/90 dark:bg-gray-850/90 backdrop-blur-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0"
           style={{
             gridTemplateColumns: COL_TEMPLATE,
             columnGap: S.colGap,
@@ -305,7 +313,6 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
               paddingRight: S.padX,
               paddingTop: S.padYRow,
               paddingBottom: S.padYRow,
-              transition: 'padding 150ms ease-out',
               minHeight: rowMinHeight,
               boxSizing: 'border-box',
             };
@@ -316,7 +323,7 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
                 onClick={() => {
                   if (entry.rawTime) onSelectTrade?.(entry.rawTime);
                 }}
-                className={`relative grid items-start hover:bg-blue-50/40 dark:hover:bg-gray-700/40 transition-colors cursor-pointer ${
+                className={`relative grid items-start hover:bg-blue-50/40 dark:hover:bg-gray-700/40 cursor-pointer ${
                   showBottomBorder ? 'border-b border-gray-200 dark:border-gray-700' : ''
                 }`}
                 style={{ gridTemplateColumns: COL_TEMPLATE, columnGap: S.colGap }}
