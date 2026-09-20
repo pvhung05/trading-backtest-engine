@@ -464,6 +464,56 @@ export function TradingChart({
     return markers.sort((a, b) => Number(a.time) - Number(b.time));
   }, [backtestResult, candles, interval, isStrategyHidden]);
 
+  const tradeMarkersRef = useRef<SeriesMarker<Time>[]>(tradeMarkers);
+  tradeMarkersRef.current = tradeMarkers;
+
+  // Viewport culling & Level of Detail for markers
+  const updateCulledMarkers = useCallback(() => {
+    if (!candleSeriesRef.current || !chartRef.current) return;
+    const allMarkers = tradeMarkersRef.current;
+    if (allMarkers.length === 0) {
+      candleSeriesRef.current.setMarkers([]);
+      return;
+    }
+
+    if (allMarkers.length <= 100) {
+      candleSeriesRef.current.setMarkers(allMarkers);
+      return;
+    }
+
+    const range = chartRef.current.timeScale().getVisibleRange();
+    if (!range || range.from === null || range.to === null) {
+      candleSeriesRef.current.setMarkers(allMarkers);
+      return;
+    }
+
+    const fromTime = Number(range.from);
+    const toTime = Number(range.to);
+    const span = Math.max(0, toTime - fromTime);
+    const buffer = span * 0.35; // 35% buffer to prevent edge pop-in
+    const minTime = fromTime - buffer;
+    const maxTime = toTime + buffer;
+
+    const visibleMarkers = allMarkers.filter((m) => {
+      const t = Number(m.time);
+      return t >= minTime && t <= maxTime;
+    });
+
+    // Level of Detail: when zoomed out with many markers, strip text to avoid text layout overhead
+    if (visibleMarkers.length > 200) {
+      const compactMarkers = visibleMarkers.map((m) => ({
+        ...m,
+        text: undefined,
+      }));
+      candleSeriesRef.current.setMarkers(compactMarkers);
+    } else {
+      candleSeriesRef.current.setMarkers(visibleMarkers);
+    }
+  }, []);
+
+  const updateCulledMarkersRef = useRef(updateCulledMarkers);
+  updateCulledMarkersRef.current = updateCulledMarkers;
+
   // 5. Initialize Lightweight Charts (Runs ONCE on mount)
   useEffect(() => {
     if (!containerRef.current) return;
@@ -553,59 +603,81 @@ export function TradingChart({
           color: c.close >= c.open ? 'rgba(38, 166, 154, 0.55)' : 'rgba(239, 83, 80, 0.55)',
         }))
       );
+      updateCulledMarkersRef.current?.();
     }
 
+    // High performance throttled crosshair move (requestAnimationFrame)
+    let crosshairRafId: number | null = null;
+    let latestCrosshairParam: any = null;
+
     chart.subscribeCrosshairMove((param) => {
-      const x = param.point?.x;
-      const y = param.point?.y;
+      latestCrosshairParam = param;
+      if (crosshairRafId === null) {
+        crosshairRafId = requestAnimationFrame(() => {
+          crosshairRafId = null;
+          const p = latestCrosshairParam;
+          if (!p) return;
 
-      if (param.time && x !== undefined && y !== undefined) {
-        const candle = param.seriesData.get(candlestickSeries) as
-          | { open: number; high: number; low: number; close: number }
-          | undefined;
+          const x = p.point?.x;
+          const y = p.point?.y;
 
-        const vol = param.seriesData.get(volumeSeries) as { value: number } | undefined;
-        const timeValue = Number(param.time);
+          if (p.time && x !== undefined && y !== undefined) {
+            const candle = p.seriesData.get(candlestickSeries) as
+              | { open: number; high: number; low: number; close: number }
+              | undefined;
 
-        setCrosshair({
-          x,
-          y,
-          price: candle?.close ?? null,
-          time: timeValue,
+            const vol = p.seriesData.get(volumeSeries) as { value: number } | undefined;
+            const timeValue = Number(p.time);
+
+            setCrosshair({
+              x,
+              y,
+              price: candle?.close ?? null,
+              time: timeValue,
+            });
+
+            if (candle && candlesRef.current.length > 1) {
+              const list = candlesRef.current;
+              const prev = list[list.length - 2] || list[0];
+              const first = list[0];
+              const chg = candle.close - prev.close;
+              const chgPct = prev.close > 0 ? (chg / prev.close) * 100 : 0;
+              const periodChange = candle.close - first.open;
+              const periodChangePct = first.open > 0 ? (periodChange / first.open) * 100 : 0;
+
+              setData({
+                time: formatTimeLabel(timeValue),
+                open: formatNum(candle.open),
+                high: formatNum(candle.high),
+                low: formatNum(candle.low),
+                close: formatNum(candle.close),
+                change: (chg >= 0 ? '+' : '') + formatNum(chg),
+                changePct: (chgPct >= 0 ? '+' : '') + formatNum(chgPct) + '%',
+                volume: vol ? formatVolume(vol.value) : '—',
+                bid: formatNum(candle.close * 0.9998),
+                ask: formatNum(candle.close * 1.0002),
+                periodChange: (periodChange >= 0 ? '+' : '') + formatNum(periodChange),
+                periodChangePct: (periodChangePct >= 0 ? '+' : '') + formatNum(periodChangePct) + '%',
+              });
+            }
+          } else {
+            setCrosshair(null);
+          }
         });
-
-        if (candle && candlesRef.current.length > 1) {
-          const list = candlesRef.current;
-          const prev = list[list.length - 2] || list[0];
-          const first = list[0];
-          const chg = candle.close - prev.close;
-          const chgPct = prev.close > 0 ? (chg / prev.close) * 100 : 0;
-          const periodChange = candle.close - first.open;
-          const periodChangePct = first.open > 0 ? (periodChange / first.open) * 100 : 0;
-
-          setData({
-            time: formatTimeLabel(timeValue),
-            open: formatNum(candle.open),
-            high: formatNum(candle.high),
-            low: formatNum(candle.low),
-            close: formatNum(candle.close),
-            change: (chg >= 0 ? '+' : '') + formatNum(chg),
-            changePct: (chgPct >= 0 ? '+' : '') + formatNum(chgPct) + '%',
-            volume: vol ? formatVolume(vol.value) : '—',
-            bid: formatNum(candle.close * 0.9998),
-            ask: formatNum(candle.close * 1.0002),
-            periodChange: (periodChange >= 0 ? '+' : '') + formatNum(periodChange),
-            periodChangePct: (periodChangePct >= 0 ? '+' : '') + formatNum(periodChangePct) + '%',
-          });
-        }
-      } else {
-        setCrosshair(null);
       }
     });
 
+    // Throttled visible range listener for lazy-load + marker culling
+    let rangeRafId: number | null = null;
     chart.timeScale().subscribeVisibleLogicalRangeChange((range: LogicalRange | null) => {
       if (range && range.from < 50) {
         fetchOlderKlinesRef.current?.();
+      }
+      if (rangeRafId === null) {
+        rangeRafId = requestAnimationFrame(() => {
+          rangeRafId = null;
+          updateCulledMarkersRef.current?.();
+        });
       }
     });
 
@@ -625,6 +697,8 @@ export function TradingChart({
     }
 
     return () => {
+      if (crosshairRafId !== null) cancelAnimationFrame(crosshairRafId);
+      if (rangeRafId !== null) cancelAnimationFrame(rangeRafId);
       window.removeEventListener('resize', handleResize);
       resizeObserver.disconnect();
       indicatorSeriesMapRef.current.clear();
@@ -657,7 +731,7 @@ export function TradingChart({
     }));
 
     candleSeriesRef.current.setData(candleData);
-    candleSeriesRef.current.setMarkers(tradeMarkers);
+    updateCulledMarkersRef.current?.();
     volumeSeriesRef.current.setData(volumeData);
 
     const last = candles[candles.length - 1];
@@ -869,12 +943,10 @@ export function TradingChart({
 
   // 8. Update Trade Markers
   useEffect(() => {
-    if (candleSeriesRef.current) {
-      candleSeriesRef.current.setMarkers(tradeMarkers);
-    }
+    updateCulledMarkersRef.current?.();
   }, [tradeMarkers]);
 
-  // 9. Update Equity Curve Series
+  // 9. Update Equity Curve Series with high-volume downsampling
   useEffect(() => {
     if (!equitySeriesRef.current) return;
 
@@ -884,14 +956,31 @@ export function TradingChart({
     }
 
     const testInterval = backtestResult?.timeframe || interval;
+    const rawPoints = backtestResult.equityCurve;
+
+    // Decimate/downsample points if larger than 2,500 to keep UI 60 FPS
+    const maxPoints = 2500;
+    const step = rawPoints.length > maxPoints ? Math.ceil(rawPoints.length / maxPoints) : 1;
+
     const map = new Map<number, number>();
-    backtestResult.equityCurve.forEach((pt) => {
+    for (let i = 0; i < rawPoints.length; i += step) {
+      const pt = rawPoints[i];
       const rawSec = Math.floor(new Date(pt.timestamp).getTime() / 1000);
       if (!isNaN(rawSec) && pt.equity != null) {
         const timeSec = snapTimeToCandle(rawSec, candles, testInterval);
         map.set(timeSec, pt.equity);
       }
-    });
+    }
+
+    // Ensure last point is always preserved
+    const lastPt = rawPoints[rawPoints.length - 1];
+    if (lastPt) {
+      const rawSec = Math.floor(new Date(lastPt.timestamp).getTime() / 1000);
+      if (!isNaN(rawSec) && lastPt.equity != null) {
+        const timeSec = snapTimeToCandle(rawSec, candles, testInterval);
+        map.set(timeSec, lastPt.equity);
+      }
+    }
 
     const equityData = Array.from(map.entries())
       .map(([time, value]) => ({ time: time as Time, value }))

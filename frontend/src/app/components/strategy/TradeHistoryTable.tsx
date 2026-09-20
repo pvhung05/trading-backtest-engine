@@ -99,11 +99,19 @@ function fmtPctSigned(v: number) {
   return `${sign}${Math.abs(v).toFixed(2)}%`;
 }
 
+const ROW_HEIGHT: Record<Scale, number> = {
+  comfortable: 56,
+  compact: 48,
+  tight: 40,
+};
+
 export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTableProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef<Scale>('comfortable');
   const [scale, setScale] = useState<Scale>('comfortable');
+  const [scrollTop, setScrollTop] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
 
   const pairs = useMemo<TradePair[]>(() => {
     const byNumber = new Map<number, { entry?: TradeRecord; exit?: TradeRecord; type?: 'Long' | 'Short' }>();
@@ -130,6 +138,7 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
     return out;
   }, [trades]);
 
+  // Responsive scaling
   useEffect(() => {
     const el = rootRef.current;
     if (!el) return;
@@ -146,7 +155,45 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
     return () => ro.disconnect();
   }, []);
 
+  // Track body height for virtualization
+  useEffect(() => {
+    const bodyEl = bodyRef.current;
+    if (!bodyEl) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height || 600);
+      }
+    });
+    ro.observe(bodyEl);
+    return () => ro.disconnect();
+  }, []);
+
+  // Throttled scroll listener
+  const onScroll = useCallback(() => {
+    if (!bodyRef.current) return;
+    const currentScroll = bodyRef.current.scrollTop;
+    setScrollTop(currentScroll);
+  }, []);
+
   const s = SCALE[scale];
+  const rowH = ROW_HEIGHT[scale];
+
+  // Virtualization window calculations
+  const totalCount = pairs.length;
+  const totalHeight = totalCount * rowH;
+  const overscan = 5;
+  const startIndex = Math.max(0, Math.floor(scrollTop / rowH) - overscan);
+  const visibleCount = Math.ceil(containerHeight / rowH) + 2 * overscan;
+  const endIndex = Math.min(totalCount, startIndex + visibleCount);
+
+  const visiblePairs = useMemo(() => {
+    return pairs.slice(startIndex, endIndex).map((pair, idx) => ({
+      pair,
+      index: startIndex + idx,
+    }));
+  }, [pairs, startIndex, endIndex]);
+
+  const offsetY = startIndex * rowH;
 
   return (
     <div ref={rootRef} className="w-full h-full flex flex-col bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 overflow-hidden select-none">
@@ -171,111 +218,130 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
         <div className="text-right">Cumulative P&L</div>
       </div>
 
-      {/* Table Body */}
-      <div ref={bodyRef} className="flex-1 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-750">
-        {pairs.length === 0 ? (
+      {/* Table Body (Virtualized Container) */}
+      <div
+        ref={bodyRef}
+        onScroll={onScroll}
+        className="flex-1 overflow-y-auto relative"
+      >
+        {totalCount === 0 ? (
           <div className="py-16 text-center text-sm text-gray-400 dark:text-gray-500">
             No trades executed yet in this backtest simulation.
           </div>
         ) : (
-          pairs.map((pair) => {
-            const pnl = pair.exit.tradePnlUsd;
-            const pnlPositive = pnl >= 0;
-            const pnlPct = pair.entry.price > 0 ? ((pair.exit.price - pair.entry.price) / pair.entry.price) * 100 : 0;
-            const effPnlPct = pair.type === 'Long' ? pnlPct : -pnlPct;
+          <div style={{ height: `${totalHeight}px`, position: 'relative', width: '100%' }}>
+            <div
+              style={{
+                transform: `translateY(${offsetY}px)`,
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+              }}
+              className="divide-y divide-gray-100 dark:divide-gray-750"
+            >
+              {visiblePairs.map(({ pair }) => {
+                const pnl = pair.exit.tradePnlUsd;
+                const pnlPositive = pnl >= 0;
+                const pnlPct = pair.entry.price > 0 ? ((pair.exit.price - pair.entry.price) / pair.entry.price) * 100 : 0;
+                const effPnlPct = pair.type === 'Long' ? pnlPct : -pnlPct;
 
-            return (
-              <div
-                key={pair.tradeNumber}
-                onClick={() => {
-                  if (pair.entry.rawTime) onSelectTrade?.(pair.entry.rawTime);
-                }}
-                className="grid hover:bg-blue-50/40 dark:hover:bg-gray-700/40 transition-colors cursor-pointer"
-                style={{
-                  gridTemplateColumns: 'minmax(120px, 1.2fr) minmax(110px, 1fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(140px, 1.3fr)',
-                  paddingLeft: s.padX,
-                  paddingRight: s.padX,
-                  paddingTop: s.padYRow,
-                  paddingBottom: s.padYRow,
-                  gap: s.colGap,
-                  fontSize: s.fontBody,
-                }}
-              >
-                {/* Col 1: Trade Number & Type */}
-                <div className="flex flex-col justify-center">
-                  <div className="font-semibold text-gray-800 dark:text-gray-200">#{pair.tradeNumber}</div>
-                  <div className="flex items-center gap-1.5 mt-0.5" style={{ fontSize: s.fontSide }}>
-                    <span
-                      className={`font-semibold px-1.5 py-0.2 rounded text-[10px] uppercase ${
-                        pair.type === 'Long'
-                          ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
-                          : 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
-                      }`}
-                    >
-                      {pair.type}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Col 2: Signal / Date */}
-                <div className="flex flex-col justify-center text-gray-600 dark:text-gray-300">
-                  <div className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-200">
-                    <span className="text-gray-400">Exit:</span>
-                    <span className="tabular-nums">{pair.exit.date}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
-                    <span>Entry:</span>
-                    <span className="tabular-nums">{pair.entry.date}</span>
-                  </div>
-                </div>
-
-                {/* Col 3: Price / Size */}
-                <div className="flex flex-col justify-center text-right tabular-nums">
-                  <div className="font-semibold text-gray-800 dark:text-gray-200">${fmtMoney(pair.exit.price)}</div>
-                  <div className="text-gray-400 text-xs mt-0.5">Entry: ${fmtMoney(pair.entry.price)}</div>
-                </div>
-
-                {/* Col 4: Net PnL */}
-                <div className="flex flex-col justify-center text-right tabular-nums">
+                return (
                   <div
-                    className="font-bold flex items-center justify-end gap-1"
-                    style={{ color: pnlPositive ? POSITIVE : NEGATIVE }}
+                    key={pair.tradeNumber}
+                    onClick={() => {
+                      if (pair.entry.rawTime) onSelectTrade?.(pair.entry.rawTime);
+                    }}
+                    className="grid hover:bg-blue-50/40 dark:hover:bg-gray-700/40 transition-colors cursor-pointer"
+                    style={{
+                      gridTemplateColumns: 'minmax(120px, 1.2fr) minmax(110px, 1fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(140px, 1.3fr)',
+                      paddingLeft: s.padX,
+                      paddingRight: s.padX,
+                      paddingTop: s.padYRow,
+                      paddingBottom: s.padYRow,
+                      gap: s.colGap,
+                      fontSize: s.fontBody,
+                      height: `${rowH}px`,
+                      boxSizing: 'border-box',
+                    }}
                   >
-                    <span>{pnlPositive ? '+' : ''}${fmtMoney(pnl)}</span>
-                  </div>
-                  <div
-                    className="text-xs font-medium mt-0.5"
-                    style={{ color: effPnlPct >= 0 ? POSITIVE : NEGATIVE }}
-                  >
-                    {fmtPctSigned(effPnlPct)}
-                  </div>
-                </div>
+                    {/* Col 1: Trade Number & Type */}
+                    <div className="flex flex-col justify-center">
+                      <div className="font-semibold text-gray-800 dark:text-gray-200">#{pair.tradeNumber}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5" style={{ fontSize: s.fontSide }}>
+                        <span
+                          className={`font-semibold px-1.5 py-0.2 rounded text-[10px] uppercase ${
+                            pair.type === 'Long'
+                              ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
+                              : 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
+                          }`}
+                        >
+                          {pair.type}
+                        </span>
+                      </div>
+                    </div>
 
-                {/* Col 5: Runup / Drawdown */}
-                <div className="flex flex-col justify-center text-right tabular-nums text-xs">
-                  <div className="text-emerald-600 dark:text-emerald-400 font-medium">
-                    +{fmtSize(pair.exit.runUpUsd)} USD
-                  </div>
-                  <div className="text-rose-500 dark:text-rose-400 font-medium mt-0.5">
-                    -{fmtSize(Math.abs(pair.exit.drawdownUsd))} USD
-                  </div>
-                </div>
+                    {/* Col 2: Signal / Date */}
+                    <div className="flex flex-col justify-center text-gray-600 dark:text-gray-300">
+                      <div className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-200">
+                        <span className="text-gray-400">Exit:</span>
+                        <span className="tabular-nums">{pair.exit.date}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
+                        <span>Entry:</span>
+                        <span className="tabular-nums">{pair.entry.date}</span>
+                      </div>
+                    </div>
 
-                {/* Col 6: Cumulative PnL */}
-                <div className="flex flex-col justify-center text-right tabular-nums">
-                  <div
-                    className="font-bold"
-                    style={{ color: pair.exit.cumulativePnlUsd >= 0 ? POSITIVE : NEGATIVE }}
-                  >
-                    {pair.exit.cumulativePnlUsd >= 0 ? '+' : ''}${fmtMoney(pair.exit.cumulativePnlUsd)}
+                    {/* Col 3: Price / Size */}
+                    <div className="flex flex-col justify-center text-right tabular-nums">
+                      <div className="font-semibold text-gray-800 dark:text-gray-200">${fmtMoney(pair.exit.price)}</div>
+                      <div className="text-gray-400 text-xs mt-0.5">Entry: ${fmtMoney(pair.entry.price)}</div>
+                    </div>
+
+                    {/* Col 4: Net PnL */}
+                    <div className="flex flex-col justify-center text-right tabular-nums">
+                      <div
+                        className="font-bold flex items-center justify-end gap-1"
+                        style={{ color: pnlPositive ? POSITIVE : NEGATIVE }}
+                      >
+                        <span>{pnlPositive ? '+' : ''}${fmtMoney(pnl)}</span>
+                      </div>
+                      <div
+                        className="text-xs font-medium mt-0.5"
+                        style={{ color: effPnlPct >= 0 ? POSITIVE : NEGATIVE }}
+                      >
+                        {fmtPctSigned(effPnlPct)}
+                      </div>
+                    </div>
+
+                    {/* Col 5: Runup / Drawdown */}
+                    <div className="flex flex-col justify-center text-right tabular-nums text-xs">
+                      <div className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        +{fmtSize(pair.exit.runUpUsd)} USD
+                      </div>
+                      <div className="text-rose-500 dark:text-rose-400 font-medium mt-0.5">
+                        -{fmtSize(Math.abs(pair.exit.drawdownUsd))} USD
+                      </div>
+                    </div>
+
+                    {/* Col 6: Cumulative PnL */}
+                    <div className="flex flex-col justify-center text-right tabular-nums">
+                      <div
+                        className="font-bold"
+                        style={{ color: pair.exit.cumulativePnlUsd >= 0 ? POSITIVE : NEGATIVE }}
+                      >
+                        {pair.exit.cumulativePnlUsd >= 0 ? '+' : ''}${fmtMoney(pair.exit.cumulativePnlUsd)}
+                      </div>
+                      <div className="text-gray-400 text-xs mt-0.5">
+                        Size: ${fmtSize(pair.entry.positionSizeUsd)}
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-gray-400 text-xs mt-0.5">
-                    Size: ${fmtSize(pair.entry.positionSizeUsd)}
-                  </div>
-                </div>
-              </div>
-            );
-          })
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
     </div>
