@@ -1,34 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
-import { useTheme } from './ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 
 interface UserMenuProps {
   userName: string;
   onLogout?: () => void;
 }
 
-/**
- * Small popover anchored to the user's avatar in the top toolbar.
- * Reads & writes the global theme via `ThemeContext` — toggling here
- * is what flips the entire app to dark/light, since the provider
- * adds `.dark` to <html> and Tailwind's `dark:` variants respond to
- * that class app-wide.
- *
- * Implemented without an external popover library to keep the bundle
- * lean — we just position ourselves under the trigger and close on
- * outside click / Escape.
- */
 export function UserMenu({ userName, onLogout }: UserMenuProps) {
   const [open, setOpen] = useState(false);
-  // Ref to the *root* wrapper so we can detect outside clicks anywhere
-  // that isn't inside the menu (trigger button + popover panel).
   const rootRef = useRef<HTMLDivElement>(null);
-
   const { isDark, toggle: toggleTheme } = useTheme();
 
-  // Close on outside click. We listen on `mousedown` rather than
-  // `click` so the menu disappears in the same frame the user starts
-  // a click elsewhere — feels more responsive.
   useEffect(() => {
     if (!open) return;
     const handleDown = (e: MouseEvent) => {
@@ -41,7 +24,6 @@ export function UserMenu({ userName, onLogout }: UserMenuProps) {
     return () => document.removeEventListener('mousedown', handleDown);
   }, [open]);
 
-  // Close on Escape — standard popover a11y behavior.
   useEffect(() => {
     if (!open) return;
     const handleKey = (e: KeyboardEvent) => {
@@ -64,9 +46,6 @@ export function UserMenu({ userName, onLogout }: UserMenuProps) {
 
       {open && (
         <div
-          // absolute + mt-1.5 anchors the panel just under the avatar.
-          // min-w-[210px] keeps it from collapsing when the user
-          // name is short. shadow-xl + border mimic modern popovers.
           className="absolute left-0 mt-1.5 min-w-[210px] bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-xl border border-gray-200/80 dark:border-gray-700/80 shadow-xl py-1.5 z-50 overflow-hidden"
           role="menu"
         >
@@ -88,10 +67,6 @@ export function UserMenu({ userName, onLogout }: UserMenuProps) {
                 Dark theme
               </span>
 
-              {/* Tiny toggle pill on the right. We use role="switch" so
-                  screen readers announce it correctly. We swap position
-                  + colors directly via `isDark` rather than CSS-only
-                  peer rules — easier to reason about. */}
               <span
                 role="switch"
                 aria-checked={isDark}

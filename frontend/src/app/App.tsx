@@ -1,22 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
-import {
-  TopToolbar,
-  ChartHeader,
-  SelectedIndicator,
-  SelectedStrategy,
-} from './components/Toolbar';
-import { TradingChart } from './components/TradingChart';
-import { Watchlist } from './components/Watchlist';
-import { TimeframeBar } from './components/TimeframeBar';
-import { StrategyBar } from './components/StrategyBar';
-import { OHLCVProvider } from './components/OHLCVContext';
-import { LoginPage } from './components/LoginPage';
-import { ThemeProvider } from './components/ThemeContext';
-import { ErrorBoundary } from './components/ErrorBoundary';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { getItem, setItem } from './utils/persistence';
-import { AuthProvider, useAuth } from './utils/auth';
+
+import { TopToolbar, ChartHeader } from './components/toolbar';
+import { TradingChart, TimeframeBar } from './components/chart';
+import { StrategyBar } from './components/strategy';
+import { Watchlist } from './components/market';
+import { LoginPage } from './components/auth';
+import { ErrorBoundary } from './components/common';
+
+import { ThemeProvider, AuthProvider, OHLCVProvider, useAuth } from './context';
+import type { SelectedIndicator, SelectedStrategy } from './types';
+import { getItem, setItem } from './utils';
 
 export type PersistedTimeframe = '1D' | '5D' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | '5Y' | 'All';
 
@@ -31,7 +26,7 @@ interface PersistedAppState {
 }
 
 const DEFAULT_APP_STATE: PersistedAppState = {
-  selectedIndicators: [{ name: 'Simple Moving Average (SMA)' }],
+  selectedIndicators: [{ id: 'sma-default', name: 'SMA (20)', type: 'SMA', period: 20, color: '#f59e0b' }],
   selectedStrategies: [{ name: 'SMA Cross Strategy', badge: 'NEW' }],
   activeView: 'metrics',
   activeTimeframe: '1D',
@@ -43,20 +38,26 @@ const DEFAULT_APP_STATE: PersistedAppState = {
 const STORAGE_KEY = 'trading-app-state';
 
 function loadAppState(): PersistedAppState {
-  const saved = getItem<PersistedAppState | null>(STORAGE_KEY, null);
-  if (!saved) return DEFAULT_APP_STATE;
-
-  // Sanitize obsolete or out-of-range dates from previous localStorage
-  let range = saved.dateRange;
-  if (!range || !range[0] || range[0] < '2020-01-01' || range[1] > '2025-12-31') {
-    range = ['2024-01-01', '2024-06-01'];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_APP_STATE;
+    const parsed = JSON.parse(raw);
+    return {
+      ...DEFAULT_APP_STATE,
+      ...parsed,
+      selectedIndicators: Array.isArray(parsed.selectedIndicators)
+        ? parsed.selectedIndicators.map((i: any, idx: number) => ({
+            ...i,
+            id: i.id || `ind-${idx}-${Date.now()}`,
+          }))
+        : DEFAULT_APP_STATE.selectedIndicators,
+      selectedStrategies: Array.isArray(parsed.selectedStrategies)
+        ? parsed.selectedStrategies
+        : DEFAULT_APP_STATE.selectedStrategies,
+    };
+  } catch {
+    return DEFAULT_APP_STATE;
   }
-
-  return {
-    ...DEFAULT_APP_STATE,
-    ...saved,
-    dateRange: range,
-  };
 }
 
 export default function App() {
@@ -149,16 +150,90 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
   }, [selectedStrategies.length]);
 
   const handleSelectIndicator = (ind: SelectedIndicator) => {
-    setSelectedIndicators((prev) => {
-      if (prev.some((i) => i.name === ind.name)) return prev;
-      return [...prev, { name: ind.name, badge: ind.badge }];
-    });
+    if (selectedIndicators.length >= 4) {
+      alert('Tối đa 4 chỉ báo kỹ thuật (indicators). Vui lòng xóa bớt chỉ báo cũ trước khi thêm mới.');
+      return;
+    }
+
+    const lower = ind.name.toLowerCase();
+    let baseType = 'SMA';
+    let period = 20;
+    let color = '#f59e0b';
+    let displayName = ind.name;
+
+    if (lower.includes('sma') || lower.includes('simple moving average')) {
+      baseType = 'SMA';
+      const existingPeriods = selectedIndicators
+        .filter((i) => (i.type || i.name).toLowerCase().includes('sma'))
+        .map((i) => i.period ?? 20);
+      if (existingPeriods.includes(20)) {
+        period = existingPeriods.includes(50) ? (existingPeriods.includes(100) ? 200 : 100) : 50;
+      } else {
+        period = 20;
+      }
+      displayName = `SMA (${period})`;
+      const colors = ['#f59e0b', '#06b6d4', '#10b981', '#ec4899', '#8b5cf6'];
+      color = colors[selectedIndicators.length % colors.length];
+    } else if (lower.includes('ema') || lower.includes('exponential')) {
+      baseType = 'EMA';
+      const existingPeriods = selectedIndicators
+        .filter((i) => (i.type || i.name).toLowerCase().includes('ema'))
+        .map((i) => i.period ?? 20);
+      period = existingPeriods.includes(20) ? (existingPeriods.includes(50) ? 200 : 50) : 20;
+      displayName = `EMA (${period})`;
+      const colors = ['#06b6d4', '#f59e0b', '#10b981', '#ec4899', '#8b5cf6'];
+      color = colors[selectedIndicators.length % colors.length];
+    } else if (lower.includes('bollinger')) {
+      baseType = 'Bollinger';
+      period = 20;
+      displayName = 'BB (20, 2)';
+      color = '#3b82f6';
+    } else if (lower.includes('rsi')) {
+      baseType = 'RSI';
+      period = 14;
+      displayName = 'RSI (14)';
+      color = '#ec4899';
+    } else if (lower.includes('macd')) {
+      baseType = 'MACD';
+      displayName = 'MACD (12, 26, 9)';
+      color = '#3b82f6';
+    } else if (lower.includes('atr')) {
+      baseType = 'ATR';
+      period = 14;
+      displayName = 'ATR (14)';
+      color = '#10b981';
+    }
+
+    const uniqueId = ind.id || `${baseType.toLowerCase()}-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+
+    setSelectedIndicators((prev) => [
+      ...prev,
+      {
+        id: uniqueId,
+        name: displayName,
+        type: baseType,
+        period,
+        color,
+        fastPeriod: 12,
+        slowPeriod: 26,
+        signalPeriod: 9,
+        multiplier: 2,
+        oversold: 30,
+        overbought: 70,
+        badge: ind.badge,
+      },
+    ]);
+  };
+
+  const handleUpdateIndicator = (updated: SelectedIndicator) => {
+    setSelectedIndicators((prev) =>
+      prev.map((i) => (i.id === updated.id ? updated : i))
+    );
   };
 
   const handleSelectStrategy = (strat: SelectedStrategy) => {
     setSelectedStrategies((prev) => {
       if (prev.some((s) => s.name === strat.name)) return prev;
-      // First strategy added → expand the (collapsed) strategy panel.
       if (prev.length === 0 && strategyPanelRef.current) {
         strategyPanelRef.current.expand();
         strategyPanelCollapsedRef.current = false;
@@ -167,12 +242,12 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
     });
   };
 
-  const handleRemoveIndicator = (name: string) => {
-    setSelectedIndicators((prev) => prev.filter((i) => i.name !== name));
+  const handleRemoveIndicator = (idOrName: string) => {
+    setSelectedIndicators((prev) => prev.filter((i) => i.id !== idOrName && i.name !== idOrName));
     setHiddenIndicators((prev) => {
-      if (!prev.has(name)) return prev;
+      if (!prev.has(idOrName)) return prev;
       const next = new Set(prev);
-      next.delete(name);
+      next.delete(idOrName);
       return next;
     });
   };
@@ -187,11 +262,11 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
     });
   };
 
-  const handleToggleIndicatorVisibility = (name: string) => {
+  const handleToggleIndicatorVisibility = (idOrName: string) => {
     setHiddenIndicators((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(idOrName)) next.delete(idOrName);
+      else next.add(idOrName);
       return next;
     });
   };
@@ -205,34 +280,25 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
     });
   };
 
-  const handleToggleAllIndicators = () => setAllIndicatorsHidden((prev) => !prev);
+  const handleToggleAllIndicators = () => {
+    setAllIndicatorsHidden((prev) => !prev);
+  };
+
   const handleToggleAllStrategies = () => {
-    setAllStrategiesHidden((prev) => {
-      const next = !prev;
-      // Auto-collapse the strategy panel when hiding, restore when unhiding.
-      if (strategyPanelRef.current) {
-        if (next) {
-          strategyPanelRef.current.collapse();
-          strategyPanelCollapsedRef.current = true;
-        } else {
-          strategyPanelRef.current.expand();
-          strategyPanelCollapsedRef.current = false;
-        }
-      }
-      return next;
-    });
+    setAllStrategiesHidden((prev) => !prev);
   };
 
   const effectiveHiddenIndicators = allIndicatorsHidden
-    ? new Set(selectedIndicators.map((i) => i.name))
+    ? new Set(selectedIndicators.map((i) => i.id || i.name))
     : hiddenIndicators;
+
   const effectiveHiddenStrategies = allStrategiesHidden
     ? new Set(selectedStrategies.map((s) => s.name))
     : hiddenStrategies;
 
   return (
     <OHLCVProvider>
-      <div className="size-full flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <div className="size-full flex flex-col bg-gray-50 dark:bg-gray-900 font-sans">
         <TopToolbar
           onSelectIndicator={handleSelectIndicator}
           onSelectStrategy={handleSelectStrategy}
@@ -240,62 +306,18 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
           onLogout={onLogout}
         />
 
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-          <PanelGroup direction="horizontal">
-            <Panel defaultSize={75} minSize={20}>
-              <div className="h-full flex flex-col">
-                {!chartHidden && <ChartHeader />}
-                <div className="flex-1 min-h-0 flex flex-col">
-                  {chartHidden ? (
-                    /* When the chart is hidden we render the strategy
-                       panel directly at 100% height. Wrapping a single
-                       child inside a PanelGroup makes react-resizable-
-                       panels warn that the layout total is only ~15%,
-                       which is noisy even though it's harmless.
-                       The `key` forces a fresh JSX subtree (and ref)
-                       each time we toggle chart visibility — otherwise
-                       the old panel's internals linger and the drag
-                       direction gets inverted. */
-                    <div key="strategy-standalone" className="h-full flex flex-col bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-                      <StrategyBar
-                            strategies={selectedStrategies.filter(
-                              (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
-                            )}
-                            onRemove={handleRemoveStrategy}
-                            expanded={strategyExpanded}
-                            chartHidden={chartHidden}
-                            activeView={activeView}
-                            onActiveViewChange={setActiveView}
-                            initialDateRange={dateRange}
-                            initialCapital={capital}
-                            onDateRangeChange={setDateRange}
-                            onCapitalChange={setCapital}
-                            onCollapsePanel={() => {
-                              strategyPanelRef.current?.resize(10);
-                              setStrategyExpanded(false);
-                              setChartHidden(false);
-                            }}
-                            onExpandPanel={() => {
-                              const panel = strategyPanelRef.current;
-                              if (!panel) return;
-                              panel.resize(85);
-                              setStrategyExpanded(true);
-                            }}
-                            onMaximizePanel={() => {
-                              setChartHidden(true);
-                              setStrategyExpanded(true);
-                            }}
-                            onRestorePanel={() => {
-                              setChartHidden(false);
-                              setStrategyExpanded(false);
-                            }}
-                          />
-                    </div>
-                  ) : (
+        <div className="flex-1 flex overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0">
+            <PanelGroup direction="horizontal">
+              <Panel defaultSize={82} minSize={50}>
+                <div className="h-full flex flex-col bg-white dark:bg-gray-800">
+                  <ChartHeader />
+
+                  <div className="flex-1 min-h-0">
                     <PanelGroup direction="vertical">
                       <Panel
                         defaultSize={85}
-                        minSize={30}
+                        minSize={15}
                         collapsible
                         ref={(handle: ImperativePanelHandle | null) => {
                           chartPanelRef.current = handle;
@@ -309,6 +331,7 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
                               hiddenIndicators={effectiveHiddenIndicators}
                               onToggleIndicatorVisibility={handleToggleIndicatorVisibility}
                               onRemoveIndicator={handleRemoveIndicator}
+                              onUpdateIndicator={handleUpdateIndicator}
                               allIndicatorsHidden={allIndicatorsHidden}
                               onToggleAllIndicators={handleToggleAllIndicators}
                               selectedStrategies={selectedStrategies}
@@ -334,19 +357,16 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
                         onCollapse={() => setStrategyExpanded(false)}
                         onExpand={() => setStrategyExpanded(false)}
                         onResize={(size) => {
-                          // Flip the chevron icon when the user manually
-                          // drags the handle. Anything well above the
-                          // default size (15%) counts as "expanded".
                           setStrategyExpanded(size > 30);
                         }}
                       >
                         <div className="h-full flex flex-col bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
                           {!chartHidden && (
-                        <TimeframeBar
-                          value={activeTimeframe}
-                          onChange={setActiveTimeframe}
-                        />
-                      )}
+                            <TimeframeBar
+                              value={activeTimeframe}
+                              onChange={setActiveTimeframe}
+                            />
+                          )}
                           {selectedStrategies.filter(
                             (s) => !allStrategiesHidden && !hiddenStrategies.has(s.name)
                           ).length > 0 && (
@@ -376,28 +396,27 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
                                   setStrategyExpanded(true);
                                 }}
                                 onMaximizePanel={() => {
-                                  const panel = strategyPanelRef.current;
-                                  if (!panel) return;
-                                  savedChartSizeRef.current =
-                                    chartPanelRef.current?.getSize() ?? null;
-                                  savedStrategySizeRef.current = panel.getSize();
-                                  panel.resize(85);
-                                  setStrategyExpanded(true);
-                                  setChartHidden(true);
+                                  const chartPanel = chartPanelRef.current;
+                                  const stratPanel = strategyPanelRef.current;
+                                  if (chartPanel && stratPanel) {
+                                    savedChartSizeRef.current = chartPanel.getSize();
+                                    savedStrategySizeRef.current = stratPanel.getSize();
+                                    chartPanel.collapse();
+                                    setChartHidden(true);
+                                    stratPanel.resize(100);
+                                    setStrategyExpanded(true);
+                                  }
                                 }}
                                 onRestorePanel={() => {
-                                  setChartHidden(false);
-                                  setStrategyExpanded(false);
-                                  const strategySize =
-                                    savedStrategySizeRef.current ?? 15;
-                                  window.setTimeout(() => {
-                                    const panel = strategyPanelRef.current;
-                                    if (!panel) return;
-                                    if (panel.isCollapsed()) {
-                                      panel.expand();
-                                    }
-                                    panel.resize(strategySize);
-                                  }, 0);
+                                  const chartPanel = chartPanelRef.current;
+                                  const stratPanel = strategyPanelRef.current;
+                                  if (chartPanel && stratPanel) {
+                                    chartPanel.expand();
+                                    setChartHidden(false);
+                                    const stratTarget = savedStrategySizeRef.current ?? 30;
+                                    stratPanel.resize(stratTarget);
+                                    setStrategyExpanded(stratTarget > 30);
+                                  }
                                 }}
                               />
                             </div>
@@ -405,19 +424,19 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
                         </div>
                       </Panel>
                     </PanelGroup>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </Panel>
+              </Panel>
 
-            <PanelResizeHandle className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors" />
+              <PanelResizeHandle className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors" />
 
-            <Panel defaultSize={25} minSize={0} maxSize={25} collapsible={true}>
-              <div className="h-full overflow-y-auto">
-                <Watchlist />
-              </div>
-            </Panel>
-          </PanelGroup>
+              <Panel defaultSize={18} minSize={12} maxSize={35}>
+                <ErrorBoundary fallbackTitle="Watchlist Error">
+                  <Watchlist />
+                </ErrorBoundary>
+              </Panel>
+            </PanelGroup>
+          </div>
         </div>
       </div>
     </OHLCVProvider>

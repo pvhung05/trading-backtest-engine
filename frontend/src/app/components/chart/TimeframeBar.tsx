@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { CalendarClock } from 'lucide-react';
 
-const TIMEFRAMES = ['1D', '5D', '1M', '3M', '6M', 'YTD', '1Y', '5Y', 'All'] as const;
-type Timeframe = (typeof TIMEFRAMES)[number];
+export const TIMEFRAMES = ['1D', '5D', '1M', '3M', '6M', 'YTD', '1Y', '5Y', 'All'] as const;
+export type Timeframe = (typeof TIMEFRAMES)[number];
 
 interface TimeframeBarProps {
   value?: Timeframe;
