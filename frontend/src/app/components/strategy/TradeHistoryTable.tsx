@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 
 type Scale = 'comfortable' | 'compact' | 'tight';
 
+/**
+ * Map panel width → scale tier. We use a tiny piece of hysteresis so that
+ * dragging the watchlist slowly across a threshold doesn't make the table
+ * snap up/down by a full tier on each frame.
+ */
 function pickScale(width: number, current: Scale): Scale {
   if (current === 'comfortable' && width < 1140) return 'compact';
   if (current === 'compact' && width >= 1140) return 'comfortable';
@@ -14,7 +19,7 @@ function pickScale(width: number, current: Scale): Scale {
 
 const SCALE = {
   comfortable: {
-    fontBody: '15px',
+    fontBody: '14px',
     fontHeader: '13px',
     fontCurrency: '11px',
     fontSizeSuffix: '10px',
@@ -65,6 +70,11 @@ export interface TradeRecord {
   cumulativePnlUsd: number;
 }
 
+/**
+ * A single completed round-trip: an Entry and its matching Exit share the
+ * same tradeNumber. We render them stacked vertically (Exit above, Entry
+ * below) so the row pair reads like a TradingView Strategy Tester trade.
+ */
 interface TradePair {
   tradeNumber: number;
   type: 'Long' | 'Short';
@@ -99,19 +109,11 @@ function fmtPctSigned(v: number) {
   return `${sign}${Math.abs(v).toFixed(2)}%`;
 }
 
-const ROW_HEIGHT: Record<Scale, number> = {
-  comfortable: 56,
-  compact: 48,
-  tight: 40,
-};
-
 export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTableProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const scaleRef = useRef<Scale>('comfortable');
   const [scale, setScale] = useState<Scale>('comfortable');
-  const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(600);
 
   const pairs = useMemo<TradePair[]>(() => {
     const byNumber = new Map<number, { entry?: TradeRecord; exit?: TradeRecord; type?: 'Long' | 'Short' }>();
@@ -123,7 +125,7 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
       byNumber.set(t.tradeNumber, slot);
     }
     const out: TradePair[] = [];
-    const keys = [...byNumber.keys()].sort((a, b) => b - a);
+    const keys = [...byNumber.keys()].sort((a, b) => a - b);
     for (const k of keys) {
       const slot = byNumber.get(k)!;
       if (slot.entry && slot.exit) {
@@ -138,211 +140,344 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
     return out;
   }, [trades]);
 
-  // Responsive scaling
   useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
+    const root = rootRef.current;
+    const body = bodyRef.current;
+    if (!root || !body) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      const rect = body.getBoundingClientRect();
+      const overBody =
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom;
+      if (overBody) return;
+      e.preventDefault();
+      body.scrollTop += e.deltaY;
+    };
+    root.addEventListener('wheel', onWheel, { passive: false });
+    return () => root.removeEventListener('wheel', onWheel);
+  }, []);
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof ResizeObserver === 'undefined') return;
+
+    const SCROLLBAR_GUTTER = 6;
     const ro = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        const next = pickScale(entry.contentRect.width, scaleRef.current);
+        const inner = Math.max(0, entry.contentRect.width - SCROLLBAR_GUTTER);
+        const next = pickScale(inner, scaleRef.current);
         if (next !== scaleRef.current) {
           scaleRef.current = next;
           setScale(next);
         }
       }
     });
-    ro.observe(el);
+    ro.observe(root);
     return () => ro.disconnect();
   }, []);
 
-  // Track body height for virtualization
   useEffect(() => {
-    const bodyEl = bodyRef.current;
-    if (!bodyEl) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContainerHeight(entry.contentRect.height || 600);
-      }
-    });
-    ro.observe(bodyEl);
-    return () => ro.disconnect();
-  }, []);
+    scaleRef.current = scale;
+  }, [scale]);
 
-  // Throttled scroll listener
-  const onScroll = useCallback(() => {
-    if (!bodyRef.current) return;
-    const currentScroll = bodyRef.current.scrollTop;
-    setScrollTop(currentScroll);
-  }, []);
+  if (pairs.length === 0) {
+    return (
+      <div
+        ref={rootRef}
+        className="flex-1 min-h-0 flex items-center justify-center px-4 py-8 bg-white dark:bg-gray-800 font-sans select-none"
+      >
+        <div className="text-center">
+          <div className="text-xs text-gray-500 dark:text-gray-400">No trade history available.</div>
+          <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-1">
+            Run a backtest to see every entry/exit here.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const s = SCALE[scale];
-  const rowH = ROW_HEIGHT[scale];
+  // 7 columns matching the TradingView Strategy Tester layout:
+  //   # | Type | Date / time | Price | Position Size | Net PnL | Return
+  const COL_TEMPLATE_BY_SCALE: Record<Scale, string> = {
+    comfortable:
+      'minmax(120px,max-content) ' +
+      'minmax(80px,max-content) ' +
+      'minmax(180px,max-content) ' +
+      'minmax(160px,max-content) ' +
+      'minmax(180px,max-content) ' +
+      'minmax(160px,max-content) ' +
+      'minmax(110px,max-content)',
+    compact:
+      'minmax(96px,max-content) ' +
+      'minmax(64px,max-content) ' +
+      'minmax(140px,max-content) ' +
+      'minmax(120px,max-content) ' +
+      'minmax(140px,max-content) ' +
+      'minmax(120px,max-content) ' +
+      'minmax(88px,max-content)',
+    tight:
+      'minmax(72px,max-content) ' +
+      'minmax(54px,max-content) ' +
+      'minmax(108px,max-content) ' +
+      'minmax(90px,max-content) ' +
+      'minmax(108px,max-content) ' +
+      'minmax(90px,max-content) ' +
+      'minmax(68px,max-content)',
+  };
 
-  // Virtualization window calculations
-  const totalCount = pairs.length;
-  const totalHeight = totalCount * rowH;
-  const overscan = 5;
-  const startIndex = Math.max(0, Math.floor(scrollTop / rowH) - overscan);
-  const visibleCount = Math.ceil(containerHeight / rowH) + 2 * overscan;
-  const endIndex = Math.min(totalCount, startIndex + visibleCount);
+  const S = SCALE[scale];
+  const COL_TEMPLATE = COL_TEMPLATE_BY_SCALE[scale];
 
-  const visiblePairs = useMemo(() => {
-    return pairs.slice(startIndex, endIndex).map((pair, idx) => ({
-      pair,
-      index: startIndex + idx,
-    }));
-  }, [pairs, startIndex, endIndex]);
-
-  const offsetY = startIndex * rowH;
+  const F = {
+    body: S.fontBody,
+    header: S.fontHeader,
+    currency: S.fontCurrency,
+    sizeSuffix: S.fontSizeSuffix,
+    side: S.fontSide,
+    pnlUsd: S.fontPnlUsd,
+  };
 
   return (
-    <div ref={rootRef} className="w-full h-full flex flex-col bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 overflow-hidden select-none">
-      {/* Table Header */}
-      <div
-        className="grid border-b border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 font-semibold text-gray-500 dark:text-gray-400 shrink-0"
-        style={{
-          gridTemplateColumns: 'minmax(120px, 1.2fr) minmax(110px, 1fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(140px, 1.3fr)',
-          paddingLeft: s.padX,
-          paddingRight: s.padX,
-          paddingTop: s.padYHeader,
-          paddingBottom: s.padYHeader,
-          gap: s.colGap,
-          fontSize: s.fontHeader,
-        }}
-      >
-        <div>Trade # / Type</div>
-        <div>Signal / Date</div>
-        <div className="text-right">Price / Size</div>
-        <div className="text-right">Net P&L (USD)</div>
-        <div className="text-right">Run-up / Drawdown</div>
-        <div className="text-right">Cumulative P&L</div>
-      </div>
-
-      {/* Table Body (Virtualized Container) */}
-      <div
-        ref={bodyRef}
-        onScroll={onScroll}
-        className="flex-1 overflow-y-auto relative"
-      >
-        {totalCount === 0 ? (
-          <div className="py-16 text-center text-sm text-gray-400 dark:text-gray-500">
-            No trades executed yet in this backtest simulation.
+    <div
+      ref={rootRef}
+      className="flex-1 min-h-0 flex flex-col overflow-hidden bg-white dark:bg-gray-800 font-sans select-none text-gray-900 dark:text-gray-100"
+    >
+      {/* Scrollable container for both header and body */}
+      <div className="flex-1 min-h-0 overflow-x-auto flex flex-col">
+        {/* Sticky Header */}
+        <div
+          className="sticky top-0 z-10 grid items-center border-b border-gray-200 dark:border-gray-700 bg-gray-50/90 dark:bg-gray-850/90 backdrop-blur-xs font-semibold text-gray-500 dark:text-gray-400 shrink-0 transition-[column-gap] duration-150 ease-out"
+          style={{
+            gridTemplateColumns: COL_TEMPLATE,
+            columnGap: S.colGap,
+            fontSize: F.header,
+            minWidth: 'max-content',
+          }}
+        >
+          <div style={{ paddingLeft: S.padX, paddingRight: S.padX, paddingTop: S.padYHeader, paddingBottom: S.padYHeader }}>
+            #
           </div>
-        ) : (
-          <div style={{ height: `${totalHeight}px`, position: 'relative', width: '100%' }}>
-            <div
-              style={{
-                transform: `translateY(${offsetY}px)`,
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-              }}
-              className="divide-y divide-gray-100 dark:divide-gray-750"
-            >
-              {visiblePairs.map(({ pair }) => {
-                const pnl = pair.exit.tradePnlUsd;
-                const pnlPositive = pnl >= 0;
-                const pnlPct = pair.entry.price > 0 ? ((pair.exit.price - pair.entry.price) / pair.entry.price) * 100 : 0;
-                const effPnlPct = pair.type === 'Long' ? pnlPct : -pnlPct;
+          <div style={{ paddingLeft: S.padX, paddingRight: S.padX, paddingTop: S.padYHeader, paddingBottom: S.padYHeader }}>
+            Type
+          </div>
+          <div className="text-right" style={{ paddingLeft: S.padX, paddingRight: S.padX, paddingTop: S.padYHeader, paddingBottom: S.padYHeader }}>
+            Date / time
+          </div>
+          <div className="text-right" style={{ paddingLeft: S.padX, paddingRight: S.padX, paddingTop: S.padYHeader, paddingBottom: S.padYHeader }}>
+            Price
+          </div>
+          <div className="text-right" style={{ paddingLeft: S.padX, paddingRight: S.padX, paddingTop: S.padYHeader, paddingBottom: S.padYHeader }}>
+            Position Size
+          </div>
+          <div className="text-right" style={{ paddingLeft: S.padX, paddingRight: S.padX, paddingTop: S.padYHeader, paddingBottom: S.padYHeader }}>
+            Net P&L
+          </div>
+          <div className="text-right" style={{ paddingLeft: S.padX, paddingRight: S.padX, paddingTop: S.padYHeader, paddingBottom: S.padYHeader }}>
+            Return
+          </div>
+        </div>
 
-                return (
-                  <div
-                    key={pair.tradeNumber}
-                    onClick={() => {
-                      if (pair.entry.rawTime) onSelectTrade?.(pair.entry.rawTime);
-                    }}
-                    className="grid hover:bg-blue-50/40 dark:hover:bg-gray-700/40 transition-colors cursor-pointer"
-                    style={{
-                      gridTemplateColumns: 'minmax(120px, 1.2fr) minmax(110px, 1fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(130px, 1.2fr) minmax(140px, 1.3fr)',
-                      paddingLeft: s.padX,
-                      paddingRight: s.padX,
-                      paddingTop: s.padYRow,
-                      paddingBottom: s.padYRow,
-                      gap: s.colGap,
-                      fontSize: s.fontBody,
-                      height: `${rowH}px`,
-                      boxSizing: 'border-box',
-                    }}
+        {/* Scrollable Body */}
+        <div
+          ref={bodyRef}
+          className="flex-1 overflow-y-auto"
+          style={{ minWidth: 'max-content' }}
+        >
+          {pairs.map(({ tradeNumber, type, entry, exit }, idx) => {
+            const pnl = exit.tradePnlUsd;
+            const isWin = pnl > 0;
+            const isLoss = pnl < 0;
+            const pnlColor = isWin ? POSITIVE : isLoss ? NEGATIVE : '#9ca3af';
+            const returnPct =
+              entry.positionSizeUsd > 0
+                ? (pnl / entry.positionSizeUsd) * 100
+                : 0;
+            const sideColor = type === 'Long' ? POSITIVE : NEGATIVE;
+            const showBottomBorder = idx !== pairs.length - 1;
+
+            const rowMinHeight = `calc(${F.body} * 1.5 + ${S.padYRow} * 2)`;
+
+            const cellStyle: CSSProperties = {
+              paddingLeft: S.padX,
+              paddingRight: S.padX,
+              paddingTop: S.padYRow,
+              paddingBottom: S.padYRow,
+              transition: 'padding 150ms ease-out',
+              minHeight: rowMinHeight,
+              boxSizing: 'border-box',
+            };
+
+            return (
+              <div
+                key={tradeNumber}
+                onClick={() => {
+                  if (entry.rawTime) onSelectTrade?.(entry.rawTime);
+                }}
+                className={`relative grid items-start hover:bg-blue-50/40 dark:hover:bg-gray-700/40 transition-colors cursor-pointer ${
+                  showBottomBorder ? 'border-b border-gray-200 dark:border-gray-700' : ''
+                }`}
+                style={{ gridTemplateColumns: COL_TEMPLATE, columnGap: S.colGap }}
+              >
+                {/* Trade # + side — spans both rows. */}
+                <div
+                  className="row-span-2 flex items-center justify-between gap-2 self-stretch"
+                  style={{
+                    gridRow: 'span 2 / span 2',
+                    ...cellStyle,
+                  }}
+                >
+                  <span
+                    className="font-semibold text-gray-800 dark:text-gray-200 tabular-nums"
+                    style={{ fontSize: F.body }}
                   >
-                    {/* Col 1: Trade Number & Type */}
-                    <div className="flex flex-col justify-center">
-                      <div className="font-semibold text-gray-800 dark:text-gray-200">#{pair.tradeNumber}</div>
-                      <div className="flex items-center gap-1.5 mt-0.5" style={{ fontSize: s.fontSide }}>
-                        <span
-                          className={`font-semibold px-1.5 py-0.2 rounded text-[10px] uppercase ${
-                            pair.type === 'Long'
-                              ? 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400'
-                              : 'bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400'
-                          }`}
-                        >
-                          {pair.type}
-                        </span>
-                      </div>
-                    </div>
+                    {tradeNumber}
+                  </span>
+                  <span
+                    className="font-medium lowercase tracking-tight"
+                    style={{ color: sideColor, fontSize: F.side }}
+                  >
+                    {type === 'Long' ? 'long' : 'short'}
+                  </span>
+                </div>
 
-                    {/* Col 2: Signal / Date */}
-                    <div className="flex flex-col justify-center text-gray-600 dark:text-gray-300">
-                      <div className="flex items-center gap-1 text-xs font-medium text-gray-700 dark:text-gray-200">
-                        <span className="text-gray-400">Exit:</span>
-                        <span className="tabular-nums">{pair.exit.date}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
-                        <span>Entry:</span>
-                        <span className="tabular-nums">{pair.entry.date}</span>
-                      </div>
-                    </div>
+                {/* Exit row (top) */}
+                <div className="flex items-center" style={cellStyle}>
+                  <span
+                    className="inline-flex items-center justify-center px-2 py-0.5 rounded font-semibold text-gray-800 dark:text-gray-200"
+                    style={{ minWidth: '56px', fontSize: F.side }}
+                  >
+                    Exit
+                  </span>
+                </div>
+                <div
+                  className="flex items-center justify-end tabular-nums whitespace-nowrap text-gray-700 dark:text-gray-300"
+                  style={{ ...cellStyle, fontSize: F.body }}
+                >
+                  {exit.date}
+                </div>
+                <div
+                  className="flex items-baseline justify-end gap-1 tabular-nums"
+                  style={cellStyle}
+                >
+                  <span className="text-gray-800 dark:text-gray-200 font-medium" style={{ fontSize: F.body }}>
+                    {fmtMoney(exit.price)}
+                  </span>
+                  <span
+                    className="text-gray-400 font-medium"
+                    style={{ fontSize: F.currency }}
+                  >
+                    USD
+                  </span>
+                </div>
+                <div
+                  className="flex flex-col items-end justify-center leading-tight tabular-nums"
+                  style={cellStyle}
+                >
+                  <span
+                    className="font-semibold text-gray-800 dark:text-gray-200"
+                    style={{ fontSize: F.body }}
+                  >
+                    {fmtSize(exit.positionSizeUsd)}
+                  </span>
+                  <span
+                    className="text-gray-400 font-medium uppercase tracking-wider"
+                    style={{ fontSize: F.sizeSuffix }}
+                  >
+                    USD
+                  </span>
+                </div>
+                <div
+                  className="flex items-center justify-end gap-1 tabular-nums"
+                  style={{ ...cellStyle, color: pnlColor }}
+                >
+                  <span
+                    className="font-bold leading-none"
+                    style={{ fontSize: F.body }}
+                  >
+                    {isWin ? '+' : isLoss ? '−' : ''}
+                    {fmtMoney(Math.abs(pnl))}
+                  </span>
+                  <span
+                    className="font-medium opacity-70 leading-none"
+                    style={{ fontSize: F.pnlUsd }}
+                  >
+                    USD
+                  </span>
+                </div>
+                <div
+                  className="flex items-center justify-end tabular-nums font-bold leading-none"
+                  style={{ ...cellStyle, color: pnlColor, fontSize: F.body }}
+                >
+                  {fmtPctSigned(returnPct)}
+                </div>
 
-                    {/* Col 3: Price / Size */}
-                    <div className="flex flex-col justify-center text-right tabular-nums">
-                      <div className="font-semibold text-gray-800 dark:text-gray-200">${fmtMoney(pair.exit.price)}</div>
-                      <div className="text-gray-400 text-xs mt-0.5">Entry: ${fmtMoney(pair.entry.price)}</div>
-                    </div>
+                {/* Divider between Exit and Entry — spans columns 2 (Type) to 5 (Position Size). */}
+                <div
+                  aria-hidden
+                  className="absolute pointer-events-none border-t border-gray-150 dark:border-gray-750"
+                  style={{
+                    top: '50%',
+                    gridColumn: '2 / 6',
+                    left: 0,
+                    right: 0,
+                  }}
+                />
 
-                    {/* Col 4: Net PnL */}
-                    <div className="flex flex-col justify-center text-right tabular-nums">
-                      <div
-                        className="font-bold flex items-center justify-end gap-1"
-                        style={{ color: pnlPositive ? POSITIVE : NEGATIVE }}
-                      >
-                        <span>{pnlPositive ? '+' : ''}${fmtMoney(pnl)}</span>
-                      </div>
-                      <div
-                        className="text-xs font-medium mt-0.5"
-                        style={{ color: effPnlPct >= 0 ? POSITIVE : NEGATIVE }}
-                      >
-                        {fmtPctSigned(effPnlPct)}
-                      </div>
-                    </div>
-
-                    {/* Col 5: Runup / Drawdown */}
-                    <div className="flex flex-col justify-center text-right tabular-nums text-xs">
-                      <div className="text-emerald-600 dark:text-emerald-400 font-medium">
-                        +{fmtSize(pair.exit.runUpUsd)} USD
-                      </div>
-                      <div className="text-rose-500 dark:text-rose-400 font-medium mt-0.5">
-                        -{fmtSize(Math.abs(pair.exit.drawdownUsd))} USD
-                      </div>
-                    </div>
-
-                    {/* Col 6: Cumulative PnL */}
-                    <div className="flex flex-col justify-center text-right tabular-nums">
-                      <div
-                        className="font-bold"
-                        style={{ color: pair.exit.cumulativePnlUsd >= 0 ? POSITIVE : NEGATIVE }}
-                      >
-                        {pair.exit.cumulativePnlUsd >= 0 ? '+' : ''}${fmtMoney(pair.exit.cumulativePnlUsd)}
-                      </div>
-                      <div className="text-gray-400 text-xs mt-0.5">
-                        Size: ${fmtSize(pair.entry.positionSizeUsd)}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+                {/* Entry row (bottom) */}
+                <div className="flex items-center" style={cellStyle}>
+                  <span
+                    className="inline-flex items-center justify-center px-2 py-0.5 rounded font-semibold text-gray-800 dark:text-gray-200"
+                    style={{ minWidth: '56px', fontSize: F.side }}
+                  >
+                    Entry
+                  </span>
+                </div>
+                <div
+                  className="flex items-center justify-end tabular-nums whitespace-nowrap text-gray-600 dark:text-gray-400"
+                  style={{ ...cellStyle, fontSize: F.body }}
+                >
+                  {entry.date}
+                </div>
+                <div
+                  className="flex items-baseline justify-end gap-1 tabular-nums"
+                  style={cellStyle}
+                >
+                  <span className="text-gray-800 dark:text-gray-200 font-medium" style={{ fontSize: F.body }}>
+                    {fmtMoney(entry.price)}
+                  </span>
+                  <span
+                    className="text-gray-400 font-medium"
+                    style={{ fontSize: F.currency }}
+                  >
+                    USD
+                  </span>
+                </div>
+                <div
+                  className="flex flex-col items-end justify-center leading-tight tabular-nums"
+                  style={cellStyle}
+                >
+                  <span
+                    className="font-semibold text-gray-800 dark:text-gray-200"
+                    style={{ fontSize: F.body }}
+                  >
+                    {fmtSize(entry.positionSizeUsd)}
+                  </span>
+                  <span
+                    className="text-gray-400 font-medium uppercase tracking-wider"
+                    style={{ fontSize: F.sizeSuffix }}
+                  >
+                    USD
+                  </span>
+                </div>
+                <div style={cellStyle} />
+                <div style={cellStyle} />
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

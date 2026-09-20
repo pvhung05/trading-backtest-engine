@@ -430,7 +430,7 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
 
               <PanelResizeHandle className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors" />
 
-              <Panel defaultSize={18} minSize={12} maxSize={35}>
+              <Panel defaultSize={18} minSize={0} maxSize={40} collapsible>
                 <ErrorBoundary fallbackTitle="Watchlist Error">
                   <Watchlist />
                 </ErrorBoundary>
