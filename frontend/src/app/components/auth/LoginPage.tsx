@@ -103,13 +103,13 @@ function getPasswordStrength(pw: string): { score: number; label: string; color:
   return { score, label: 'Rất mạnh', color: '#10b981' };
 }
 
-// ===== CANVAS ANIMATION COMPONENT - CANDLESTICK CHART =====
+// ===== CANVAS ANIMATION COMPONENT - QUANT BACKTEST ENGINE =====
 function AnimatedBackground({ paused, mouseX, mouseY }: { paused: boolean; mouseX: number; mouseY: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const timeRef = useRef(0);
   const pausedRef = useRef(paused);
-  const candleDataRef = useRef<{ open: number; close: number; high: number; low: number }[]>([]);
+  const candleDataRef = useRef<{ open: number; close: number; high: number; low: number; signal?: 'BUY' | 'SELL' }[]>([]);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -122,16 +122,29 @@ function AnimatedBackground({ paused, mouseX, mouseY }: { paused: boolean; mouse
 
     const genCandles = () => {
       const data: typeof candleDataRef.current = [];
-      let price = 0.42;
-      for (let i = 0; i < 28; i++) {
-        const move = (Math.random() - 0.46) * 0.07;
+      let price = 0.46;
+      for (let i = 0; i < 30; i++) {
+        const trend = i > 10 && i < 22 ? 0.03 : -0.015;
+        const move = (Math.random() - 0.47) * 0.075 + trend * 0.05;
         const open = price;
-        price = Math.max(0.08, Math.min(0.92, price + move));
+        price = Math.max(0.12, Math.min(0.88, price + move));
         const close = price;
         const bodyH = Math.abs(close - open);
-        const high = Math.max(open, close) + Math.random() * bodyH * 0.9 + 0.01;
-        const low = Math.min(open, close) - Math.random() * bodyH * 0.9 - 0.01;
-        data.push({ open, close, high: Math.min(high, 0.97), low: Math.max(low, 0.03) });
+        const high = Math.max(open, close) + Math.random() * bodyH * 0.7 + 0.015;
+        const low = Math.min(open, close) - Math.random() * bodyH * 0.7 - 0.015;
+
+        let signal: 'BUY' | 'SELL' | undefined;
+        if (i === 7) signal = 'BUY';
+        if (i === 19) signal = 'SELL';
+        if (i === 24) signal = 'BUY';
+
+        data.push({
+          open,
+          close,
+          high: Math.min(high, 0.96),
+          low: Math.max(low, 0.04),
+          signal,
+        });
       }
       candleDataRef.current = data;
     };
@@ -139,67 +152,91 @@ function AnimatedBackground({ paused, mouseX, mouseY }: { paused: boolean; mouse
 
     const resize = () => {
       if (!canvas) return;
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = canvas.offsetWidth * dpr;
+      canvas.height = canvas.offsetHeight * dpr;
+      ctx.scale(dpr, dpr);
     };
     resize();
     window.addEventListener('resize', resize);
 
-    const particles = Array.from({ length: 55 }, () => ({
+    const particles = Array.from({ length: 48 }, () => ({
       x: Math.random(),
       y: Math.random(),
       vx: (Math.random() - 0.5) * 0.0003,
-      vy: -(Math.random() * 0.0004 + 0.0001),
-      r: Math.random() * 1.8 + 0.4,
-      op: Math.random() * 0.5 + 0.15,
+      vy: -(Math.random() * 0.0004 + 0.00015),
+      r: Math.random() * 1.6 + 0.4,
+      op: Math.random() * 0.45 + 0.1,
       life: Math.random(),
     }));
 
     const draw = () => {
-      if (!pausedRef.current) timeRef.current += 0.008;
+      if (!pausedRef.current) timeRef.current += 0.009;
       const t = timeRef.current;
-      const W = canvas.width;
-      const H = canvas.height;
+      const W = canvas.offsetWidth;
+      const H = canvas.offsetHeight;
       const data = candleDataRef.current;
 
-      // ── Dark gradient background ──
+      // ── Deep futuristic space navy background ──
       const bg = ctx.createLinearGradient(0, 0, 0, H);
-      bg.addColorStop(0, '#0d1117');
-      bg.addColorStop(0.6, '#101820');
-      bg.addColorStop(1, '#0a1520');
+      bg.addColorStop(0, '#060a14');
+      bg.addColorStop(0.5, '#0b1329');
+      bg.addColorStop(1, '#050811');
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, W, H);
 
-      // Radial glow center
-      const glow = ctx.createRadialGradient(W * 0.5, H * 0.55, 0, W * 0.5, H * 0.55, W * 0.65);
-      glow.addColorStop(0, 'rgba(41,98,255,0.055)');
-      glow.addColorStop(1, 'rgba(0,0,0,0)');
-      ctx.fillStyle = glow;
+      // Ambient radial neon glow
+      const glow1 = ctx.createRadialGradient(W * 0.65, H * 0.45, 0, W * 0.65, H * 0.45, W * 0.6);
+      glow1.addColorStop(0, 'rgba(59,130,246,0.12)');
+      glow1.addColorStop(0.5, 'rgba(16,185,129,0.04)');
+      glow1.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = glow1;
       ctx.fillRect(0, 0, W, H);
 
       // Mouse spotlight
       if (mouseX > 0) {
-        const sg = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 220);
-        sg.addColorStop(0, 'rgba(100,160,255,0.07)');
+        const sg = ctx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, 200);
+        sg.addColorStop(0, 'rgba(99,102,241,0.12)');
         sg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = sg;
         ctx.fillRect(0, 0, W, H);
       }
 
-      // Horizontal grid
-      const PAD_L = W * 0.07;
-      const PAD_R = W * 0.04;
-      const PAD_T = H * 0.22;
-      const PAD_B = H * 0.14;
+      // Cyber Grid lines
+      ctx.save();
+      ctx.globalAlpha = 0.04;
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 1;
+      const gridStep = 48;
+      for (let x = 0; x < W; x += gridStep) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, H);
+        ctx.stroke();
+      }
+      for (let y = 0; y < H; y += gridStep) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(W, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+      // Chart Padding (Positioned below the top title area to never overlap)
+      const PAD_L = W * 0.08;
+      const PAD_R = W * 0.06;
+      const PAD_T = H * 0.36; // Start lower down to give ample headroom for slogan & HUD
+      const PAD_B = H * 0.16;
       const chartH = H - PAD_T - PAD_B;
       const chartW = W - PAD_L - PAD_R;
 
+      // Price Grid
       ctx.save();
-      ctx.globalAlpha = 0.06;
-      ctx.strokeStyle = '#8899bb';
+      ctx.globalAlpha = 0.07;
+      ctx.strokeStyle = '#93c5fd';
       ctx.lineWidth = 1;
-      for (let g = 0; g <= 5; g++) {
-        const gy = PAD_T + (g / 5) * chartH;
+      for (let g = 0; g <= 4; g++) {
+        const gy = PAD_T + (g / 4) * chartH;
         ctx.beginPath();
         ctx.moveTo(PAD_L, gy);
         ctx.lineTo(W - PAD_R, gy);
@@ -210,125 +247,167 @@ function AnimatedBackground({ paused, mouseX, mouseY }: { paused: boolean; mouse
       // Price labels on the left
       ctx.save();
       ctx.font = `500 10px 'Inter', monospace`;
-      ctx.fillStyle = 'rgba(100,130,180,0.45)';
+      ctx.fillStyle = 'rgba(147,197,253,0.5)';
       ctx.textAlign = 'right';
-      const priceLabels = ['67,800', '67,600', '67,400', '67,200', '67,000', '66,800'];
-      for (let g = 0; g <= 5; g++) {
-        const gy = PAD_T + (g / 5) * chartH;
-        ctx.fillText(priceLabels[g] || '', PAD_L - 6, gy + 4);
+      const priceLabels = ['68,500', '67,800', '67,100', '66,400', '65,700'];
+      for (let g = 0; g <= 4; g++) {
+        const gy = PAD_T + (g / 4) * chartH;
+        ctx.fillText(priceLabels[g] || '', PAD_L - 8, gy + 3.5);
       }
       ctx.restore();
 
-      // Draw Candlesticks
+      // Candlesticks
       const count = data.length;
       const gap = chartW / count;
-      const cw = gap * 0.52;
+      const cw = Math.max(gap * 0.54, 4);
+
+      const signalPositions: { x: number; y: number; type: 'BUY' | 'SELL'; price: string }[] = [];
 
       data.forEach((d, i) => {
         const isBull = d.close >= d.open;
-
         const candleCX = PAD_L + (i + 0.5) * gap;
         const proximity = mouseX > 0 ? Math.max(0, 1 - Math.abs(candleCX - mouseX) / (gap * 2.5)) : 0;
 
-        const bullColor = proximity > 0.3 ? `rgba(72,220,130,${0.85 + proximity * 0.15})` : 'rgba(52,199,105,0.75)';
-        const bearColor = proximity > 0.3 ? `rgba(255,90,90,${0.85 + proximity * 0.15})` : 'rgba(239,68,68,0.72)';
+        const bullColor = proximity > 0.25 ? '#10b981' : '#059669';
+        const bearColor = proximity > 0.25 ? '#f43f5e' : '#e11d48';
         const color = isBull ? bullColor : bearColor;
-        const glowC = isBull ? '#34c769' : '#ef4444';
 
-        const yHigh = PAD_T + d.high * chartH;
-        const yLow = PAD_T + d.low * chartH;
-        const yOpen = PAD_T + d.open * chartH;
-        const yClose = PAD_T + d.close * chartH;
+        const yHigh = PAD_T + (1 - d.high) * chartH;
+        const yLow = PAD_T + (1 - d.low) * chartH;
+        const yOpen = PAD_T + (1 - d.open) * chartH;
+        const yClose = PAD_T + (1 - d.close) * chartH;
         const bodyY = Math.min(yOpen, yClose);
-        const bodyH = Math.max(Math.abs(yClose - yOpen), 2);
+        const bodyH = Math.max(Math.abs(yClose - yOpen), 3);
 
         ctx.save();
         if (proximity > 0.25) {
-          ctx.shadowColor = glowC;
-          ctx.shadowBlur = 10 + proximity * 12;
+          ctx.shadowColor = color;
+          ctx.shadowBlur = 12;
         }
+
         // Wick
         ctx.strokeStyle = color;
-        ctx.lineWidth = 1.2;
+        ctx.lineWidth = 1.3;
         ctx.beginPath();
         ctx.moveTo(candleCX, yHigh);
         ctx.lineTo(candleCX, yLow);
         ctx.stroke();
+
         // Body
         ctx.fillStyle = color;
         ctx.beginPath();
-        ctx.roundRect(candleCX - cw / 2, bodyY, cw, bodyH, 2);
+        ctx.roundRect(candleCX - cw / 2, bodyY, cw, bodyH, 2.5);
         ctx.fill();
         ctx.restore();
+
+        // Save Signal Position
+        if (d.signal === 'BUY') {
+          signalPositions.push({
+            x: candleCX,
+            y: yLow + 16,
+            type: 'BUY',
+            price: '$65,420',
+          });
+        } else if (d.signal === 'SELL') {
+          signalPositions.push({
+            x: candleCX,
+            y: yHigh - 16,
+            type: 'SELL',
+            price: '$68,150 (+4.17%)',
+          });
+        }
       });
 
       // Neon EMA Curve
       const emaPoints: { x: number; y: number }[] = [];
       let ema = data[0].close;
-      const k = 2 / (9 + 1);
+      const k = 2 / (8 + 1);
       data.forEach((d, i) => {
         ema = d.close * k + ema * (1 - k);
-        const wave = Math.sin(t * 1.4 + i * 0.55) * 0.006;
+        const wave = Math.sin(t * 1.5 + i * 0.4) * 0.008;
         emaPoints.push({
           x: PAD_L + (i + 0.5) * gap,
-          y: PAD_T + Math.min(Math.max(ema + wave, 0), 1) * chartH,
+          y: PAD_T + (1 - Math.min(Math.max(ema + wave, 0.05), 0.95)) * chartH,
         });
       });
-      emaPoints.push({ x: W + 20, y: emaPoints[emaPoints.length - 1].y + Math.sin(t * 1.4 + count * 0.55) * 6 });
 
       ctx.save();
       ctx.beginPath();
       emaPoints.forEach((p, i) => (i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y)));
-      ctx.strokeStyle = '#2979ff';
-      ctx.lineWidth = 2;
-      ctx.shadowColor = '#4d94ff';
-      ctx.shadowBlur = 16;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2.2;
+      ctx.shadowColor = '#0284c7';
+      ctx.shadowBlur = 14;
       ctx.stroke();
-      ctx.lineTo(W + 20, H);
-      ctx.lineTo(PAD_L, H);
-      ctx.closePath();
-      const fillG = ctx.createLinearGradient(0, PAD_T, 0, H);
-      fillG.addColorStop(0, 'rgba(41,121,255,0.12)');
-      fillG.addColorStop(1, 'rgba(41,121,255,0)');
-      ctx.fillStyle = fillG;
-      ctx.shadowBlur = 0;
-      ctx.fill();
+
+      // Gradient Area fill under EMA
+      if (emaPoints.length > 0) {
+        ctx.lineTo(emaPoints[emaPoints.length - 1].x, PAD_T + chartH);
+        ctx.lineTo(emaPoints[0].x, PAD_T + chartH);
+        ctx.closePath();
+        const fillG = ctx.createLinearGradient(0, PAD_T, 0, PAD_T + chartH);
+        fillG.addColorStop(0, 'rgba(56,189,248,0.15)');
+        fillG.addColorStop(1, 'rgba(56,189,248,0)');
+        ctx.fillStyle = fillG;
+        ctx.shadowBlur = 0;
+        ctx.fill();
+      }
       ctx.restore();
 
-      // Volume bars
-      const volH = chartH * 0.12;
-      const volY = PAD_T + chartH + 8;
-      data.forEach((d, i) => {
-        const isBull = d.close >= d.open;
-        const vol = 0.3 + (i % 3 === 0 ? 0.5 : 0.25);
-        const bh = vol * volH;
-        const bx = PAD_L + (i + 0.5) * gap - cw / 2;
+      // Strategy Buy / Sell Execution Badges
+      signalPositions.forEach((sig) => {
         ctx.save();
-        ctx.globalAlpha = 0.35;
-        ctx.fillStyle = isBull ? '#34c769' : '#ef4444';
+        const isBuy = sig.type === 'BUY';
+        const badgeColor = isBuy ? '#10b981' : '#f43f5e';
+        const label = isBuy ? '▲ BUY' : '▼ TAKE PROFIT';
+
+        // Little anchor dot
         ctx.beginPath();
-        ctx.roundRect(bx, volY + volH - bh, cw, bh, 1);
+        ctx.arc(sig.x, isBuy ? sig.y - 10 : sig.y + 10, 3, 0, Math.PI * 2);
+        ctx.fillStyle = badgeColor;
+        ctx.shadowColor = badgeColor;
+        ctx.shadowBlur = 8;
         ctx.fill();
+
+        // Badge pill
+        ctx.font = `600 10px 'Inter', sans-serif`;
+        const textW = ctx.measureText(label).width;
+        const pillW = textW + 14;
+        const pillH = 18;
+        const pillX = sig.x - pillW / 2;
+        const pillY = isBuy ? sig.y + 2 : sig.y - 20;
+
+        ctx.fillStyle = isBuy ? 'rgba(6,78,59,0.85)' : 'rgba(136,19,55,0.85)';
+        ctx.strokeStyle = badgeColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(pillX, pillY, pillW, pillH, 4);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, sig.x, pillY + pillH / 2);
         ctx.restore();
       });
 
-      // Live Ticker Header on Canvas
-      ctx.save();
-      ctx.font = `700 15px 'Inter', sans-serif`;
-      ctx.fillStyle = 'rgba(210,220,255,0.9)';
-      ctx.textAlign = 'left';
-      ctx.fillText('BTC / USD', PAD_L, PAD_T - 36);
-
-      const livePrice = 67432 + Math.sin(t * 0.4) * 95;
-      ctx.font = `600 22px 'Inter', monospace`;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(`$${livePrice.toFixed(2)}`, PAD_L, PAD_T - 14);
-
-      const chg = 2.34 + Math.sin(t * 0.25) * 0.12;
-      ctx.font = `500 12px 'Inter', sans-serif`;
-      ctx.fillStyle = '#34c769';
-      ctx.fillText(`▲ ${chg.toFixed(2)}%  (24h)`, PAD_L + 160, PAD_T - 16);
-      ctx.restore();
+      // Volume bars
+      const volH = chartH * 0.14;
+      const volY = PAD_T + chartH + 10;
+      data.forEach((d, i) => {
+        const isBull = d.close >= d.open;
+        const vol = 0.25 + ((i * 7) % 10) * 0.07;
+        const bh = vol * volH;
+        const bx = PAD_L + (i + 0.5) * gap - cw / 2;
+        ctx.save();
+        ctx.globalAlpha = 0.38;
+        ctx.fillStyle = isBull ? '#10b981' : '#f43f5e';
+        ctx.beginPath();
+        ctx.roundRect(bx, volY + volH - bh, cw, bh, 1.5);
+        ctx.fill();
+        ctx.restore();
+      });
 
       // Floating Light Particles
       particles.forEach((p) => {
@@ -345,8 +424,8 @@ function AnimatedBackground({ paused, mouseX, mouseY }: { paused: boolean; mouse
         const alpha = Math.sin(p.life * Math.PI) * p.op;
         ctx.save();
         ctx.globalAlpha = alpha;
-        ctx.fillStyle = '#7fb8e0';
-        ctx.shadowColor = '#4d94ff';
+        ctx.fillStyle = '#93c5fd';
+        ctx.shadowColor = '#60a5fa';
         ctx.shadowBlur = 6;
         ctx.beginPath();
         ctx.arc(p.x * W, p.y * H, p.r, 0, Math.PI * 2);
@@ -686,25 +765,34 @@ export function LoginPage() {
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_70%,rgba(255,255,255,0.08)_0%,transparent_70%)]" />
             </div>
 
-            {/* Slogan & Branding */}
+            {/* Slogan & Branding Header */}
             <div
-              className="absolute top-10 left-9 right-9 transition-transform duration-120 pointer-events-none"
+              className="absolute top-8 left-8 right-8 transition-transform duration-120 pointer-events-none"
               style={{
-                transform: `translate(${parallaxPos.x * 0.6}px, ${parallaxPos.y * 0.6}px)`,
+                transform: `translate(${parallaxPos.x * 0.4}px, ${parallaxPos.y * 0.4}px)`,
               }}
             >
-              {/* Logo */}
-              <div className="flex items-center gap-2.5 mb-7 pointer-events-auto">
-                <div className="size-9 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/20 shadow-md">
-                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="white" strokeWidth="2.2">
-                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-                  </svg>
+              {/* Top Row: Logo & Status Badge */}
+              <div className="flex items-center justify-between mb-5 pointer-events-auto">
+                <div className="flex items-center gap-2.5">
+                  <div className="size-9 rounded-xl bg-blue-500/20 backdrop-blur-md flex items-center justify-center border border-blue-400/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#60a5fa" strokeWidth="2.4">
+                      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                    </svg>
+                  </div>
+                  <span className="text-white font-extrabold text-xl tracking-tight bg-gradient-to-r from-white via-slate-100 to-blue-200 bg-clip-text text-transparent">
+                    BacktestPro
+                  </span>
                 </div>
-                <span className="text-white/95 font-bold text-lg tracking-tight">BacktestPro</span>
+
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium backdrop-blur-md">
+                  <span className="size-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Engine v2.4 Live</span>
+                </div>
               </div>
 
-              {/* Staggered Character Reveal */}
-              <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight tracking-tight drop-shadow-md">
+              {/* Staggered Character Reveal Headline */}
+              <h1 className="text-3xl xl:text-4xl font-black text-white leading-tight tracking-tight drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
                 {slogan.split('').map((char, i) => (
                   <span
                     key={i}
@@ -712,7 +800,7 @@ export function LoginPage() {
                     style={{
                       opacity: sloganVisible ? 1 : 0,
                       transform: sloganVisible ? 'translateY(0)' : 'translateY(12px)',
-                      transitionDelay: `${i * 0.03}s`,
+                      transitionDelay: `${i * 0.025}s`,
                     }}
                   >
                     {char === ' ' ? '\u00A0' : char}
@@ -720,22 +808,84 @@ export function LoginPage() {
                 ))}
               </h1>
               <p
-                className="text-white/75 text-base mt-3 font-normal leading-relaxed transition-all duration-500"
+                className="text-slate-300/85 text-sm xl:text-base mt-2 font-normal leading-relaxed max-w-lg transition-all duration-500 drop-shadow"
                 style={{
                   opacity: sloganVisible ? 1 : 0,
                   transform: sloganVisible ? 'translateY(0)' : 'translateY(8px)',
-                  transitionDelay: '0.8s',
+                  transitionDelay: '0.6s',
                 }}
               >
-                Kiểm tra và tối ưu hóa chiến lược giao dịch trước khi đặt tiền thật.
+                Kiểm tra & tối ưu hóa chiến lược định lượng trên dữ liệu lịch sử chuẩn xác.
               </p>
+            </div>
+
+            {/* Floating Strategy HUD Card (Middle Overlay) */}
+            <div
+              className="absolute top-[32%] right-8 transition-transform duration-150 pointer-events-none hidden xl:block"
+              style={{
+                transform: `translate(${parallaxPos.x * -0.5}px, ${parallaxPos.y * -0.5}px)`,
+              }}
+            >
+              <div className="bg-slate-900/75 backdrop-blur-xl border border-white/10 rounded-2xl p-3.5 shadow-2xl flex items-center gap-4 text-xs">
+                <div className="size-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400 font-bold">
+                  ⚡
+                </div>
+                <div>
+                  <div className="text-slate-400 font-medium">Strategy Alpha</div>
+                  <div className="text-white font-semibold text-sm">EMA Trend Breakout</div>
+                </div>
+                <div className="h-6 w-[1px] bg-white/10" />
+                <div>
+                  <div className="text-slate-400">Win Rate</div>
+                  <div className="text-emerald-400 font-bold text-sm">68.4%</div>
+                </div>
+                <div>
+                  <div className="text-slate-400">Profit Factor</div>
+                  <div className="text-blue-400 font-bold text-sm">2.45</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Floating Net PnL Card (Bottom Left Overlay) */}
+            <div
+              className="absolute bottom-6 left-8 transition-transform duration-150 pointer-events-none"
+              style={{
+                transform: `translate(${parallaxPos.x * 0.3}px, ${parallaxPos.y * 0.3}px)`,
+              }}
+            >
+              <div className="bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-4 shadow-2xl flex items-center gap-5">
+                <div>
+                  <div className="text-slate-400 text-xs font-medium">Net Backtest PnL</div>
+                  <div className="text-emerald-400 font-extrabold text-xl tracking-tight flex items-center gap-1.5">
+                    <span>+$48,250.00</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-semibold">
+                      +142.8%
+                    </span>
+                  </div>
+                </div>
+                <div className="h-8 w-[1px] bg-white/10" />
+                <div className="flex gap-4 text-xs">
+                  <div>
+                    <div className="text-slate-400">Max DD</div>
+                    <div className="text-rose-400 font-bold">-3.8%</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-400">Sharpe</div>
+                    <div className="text-blue-300 font-bold">2.34</div>
+                  </div>
+                  <div>
+                    <div className="text-slate-400">Trades</div>
+                    <div className="text-white font-bold">428</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Pause / Play Button */}
             <button
               onClick={() => setPaused((p) => !p)}
               aria-label={paused ? 'Chạy animation' : 'Dừng animation'}
-              className="absolute bottom-5 right-5 size-9 rounded-full bg-white/20 backdrop-blur-md border border-white/30 text-white cursor-pointer flex items-center justify-center hover:bg-white/35 transition-colors shadow-lg"
+              className="absolute bottom-6 right-8 size-9 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/20 text-white cursor-pointer flex items-center justify-center transition-all shadow-lg hover:scale-105 active:scale-95"
             >
               {paused ? (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
