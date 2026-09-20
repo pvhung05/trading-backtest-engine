@@ -111,21 +111,30 @@ public class ExecutionSimulationRequest {
     }
 
     private Integer requirePositive(Integer value, String fieldName) {
-        if (value == null || value <= 0) {
+        if (value == null) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        if (value <= 0) {
             throw new IllegalArgumentException(fieldName + " must be greater than 0");
         }
         return value;
     }
 
     private Double requirePositiveDouble(Double value, String fieldName) {
-        if (value == null || value <= 0.0d) {
+        if (value == null) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        if (value <= 0.0d) {
             throw new IllegalArgumentException(fieldName + " must be greater than 0");
         }
         return value;
     }
 
     private Double requireNonNegative(Double value, String fieldName) {
-        if (value == null || value < 0.0d) {
+        if (value == null) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        if (value < 0.0d) {
             throw new IllegalArgumentException(fieldName + " must be greater than or equal to 0");
         }
         return value;

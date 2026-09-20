@@ -37,6 +37,9 @@ public class SortinoRatioCalculator {
             return 0.0;
         }
         double sortino = (mean / downsideDeviation) * Math.sqrt(252.0);
+        if (Double.isNaN(sortino) || Double.isInfinite(sortino)) {
+            return 0.0;
+        }
         return BigDecimal.valueOf(sortino)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();

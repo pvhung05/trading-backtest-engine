@@ -36,6 +36,9 @@ public class SharpeRatioCalculator {
             return 0.0;
         }
         double sharpe = (mean / stdDev) * Math.sqrt(252.0);
+        if (Double.isNaN(sharpe) || Double.isInfinite(sharpe)) {
+            return 0.0;
+        }
         return BigDecimal.valueOf(sharpe)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();

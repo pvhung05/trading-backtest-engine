@@ -41,6 +41,9 @@ public class ExpectancyCalculator {
         double avgWin = averageWinCalculator.calculate(trades);
         double avgLoss = averageLossCalculator.calculate(trades);
         double expectancy = (winRate * avgWin) - ((1.0 - winRate) * avgLoss);
+        if (Double.isNaN(expectancy) || Double.isInfinite(expectancy)) {
+            return 0.0;
+        }
         return BigDecimal.valueOf(expectancy)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();

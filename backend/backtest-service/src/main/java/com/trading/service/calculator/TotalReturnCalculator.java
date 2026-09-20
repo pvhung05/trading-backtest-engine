@@ -25,7 +25,11 @@ public class TotalReturnCalculator {
         if (initialCapital == 0.0) {
             return 0.0;
         }
-        return BigDecimal.valueOf((finalBalance - initialCapital) / initialCapital * 100.0)
+        double ret = (finalBalance - initialCapital) / initialCapital * 100.0;
+        if (Double.isNaN(ret) || Double.isInfinite(ret)) {
+            return 0.0;
+        }
+        return BigDecimal.valueOf(ret)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();
     }

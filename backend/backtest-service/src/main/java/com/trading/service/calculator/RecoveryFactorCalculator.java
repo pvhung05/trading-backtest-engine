@@ -38,9 +38,13 @@ public class RecoveryFactorCalculator {
         }
         double maxDrawdown = maxDrawdownCalculator.calculate(equityCurve);
         if (maxDrawdown == 0.0) {
-            return Double.POSITIVE_INFINITY;
+            return netProfit > 0.0 ? 999.99 : 0.0;
         }
-        return BigDecimal.valueOf(netProfit / maxDrawdown)
+        double factor = netProfit / maxDrawdown;
+        if (Double.isNaN(factor) || Double.isInfinite(factor)) {
+            return 0.0;
+        }
+        return BigDecimal.valueOf(factor)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();
     }

@@ -43,7 +43,11 @@ public class CalmarRatioCalculator {
             return 0.0;
         }
         double cagr = cagrCalculator.calculate(initialCapital, finalBalance, equityCurve, trades);
-        return BigDecimal.valueOf(cagr / maxDrawdown)
+        double calmar = cagr / maxDrawdown;
+        if (Double.isNaN(calmar) || Double.isInfinite(calmar)) {
+            return 0.0;
+        }
+        return BigDecimal.valueOf(calmar)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();
     }

@@ -31,10 +31,15 @@ public class MaxDrawdownCalculator {
             if (equity > peak) {
                 peak = equity;
             }
-            double drawdown = (peak - equity) / peak * 100.0;
-            if (drawdown > maxDrawdown) {
-                maxDrawdown = drawdown;
+            if (peak > 0.0) {
+                double drawdown = (peak - equity) / peak * 100.0;
+                if (drawdown > maxDrawdown) {
+                    maxDrawdown = drawdown;
+                }
             }
+        }
+        if (Double.isNaN(maxDrawdown) || Double.isInfinite(maxDrawdown)) {
+            return 0.0;
         }
         return BigDecimal.valueOf(maxDrawdown)
                 .setScale(6, RoundingMode.HALF_UP)

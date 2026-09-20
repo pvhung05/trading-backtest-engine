@@ -41,9 +41,18 @@ public class CAGRCalculator {
         }
 
         double years = days / 365.0;
+        if (years <= 0.0) {
+            return 0.0;
+        }
         double ratio = finalBalance / initialCapital;
+        if (ratio <= 0.0) {
+            return -100.0;
+        }
 
-        double cagr = (Math.pow(ratio, 1.0 / years) - 1) * 100.0;
+        double cagr = (Math.pow(ratio, 1.0 / years) - 1.0) * 100.0;
+        if (Double.isNaN(cagr) || Double.isInfinite(cagr)) {
+            return 0.0;
+        }
         return BigDecimal.valueOf(cagr)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();

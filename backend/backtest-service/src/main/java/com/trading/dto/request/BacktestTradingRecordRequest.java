@@ -98,7 +98,10 @@ public class BacktestTradingRecordRequest {
     }
 
     private Integer requirePositive(Integer value, String fieldName) {
-        if (value == null || value <= 0) {
+        if (value == null) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        if (value <= 0) {
             throw new IllegalArgumentException(fieldName + " must be greater than 0");
         }
         return value;

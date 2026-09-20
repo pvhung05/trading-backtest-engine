@@ -31,9 +31,13 @@ public class ProfitFactorCalculator {
                 .mapToDouble(ExecutedTrade::getNetProfit)
                 .sum());
         if (grossLoss == 0.0) {
-            return grossProfit > 0.0 ? Double.POSITIVE_INFINITY : 0.0;
+            return grossProfit > 0.0 ? 999.99 : 0.0;
         }
-        return BigDecimal.valueOf(grossProfit / grossLoss)
+        double factor = grossProfit / grossLoss;
+        if (Double.isNaN(factor) || Double.isInfinite(factor)) {
+            return 0.0;
+        }
+        return BigDecimal.valueOf(factor)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();
     }

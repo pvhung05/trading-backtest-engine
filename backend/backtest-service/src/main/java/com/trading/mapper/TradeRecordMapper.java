@@ -58,10 +58,10 @@ public class TradeRecordMapper {
         BigDecimal sizeUsd = entryPrice.multiply(quantity).setScale(SCALE_PNL, RoundingMode.HALF_UP);
 
         // MFE and MAE in currency units
-        BigDecimal mfe = BigDecimal.valueOf(maxFavorable)
+        BigDecimal mfe = toBigDecimal(maxFavorable, SCALE_PNL)
                 .multiply(quantity)
                 .setScale(SCALE_PNL, RoundingMode.HALF_UP);
-        BigDecimal mae = BigDecimal.valueOf(maxAdverse)
+        BigDecimal mae = toBigDecimal(maxAdverse, SCALE_PNL)
                 .multiply(quantity)
                 .setScale(SCALE_PNL, RoundingMode.HALF_UP);
 
@@ -71,12 +71,15 @@ public class TradeRecordMapper {
                 grossProfit, commission, slippageCost,
                 netProfit, returnPercent, null,
                 mfe, mae,
-                BigDecimal.valueOf(cumulativePnl).setScale(SCALE_PNL, RoundingMode.HALF_UP),
+                toBigDecimal(cumulativePnl, SCALE_PNL),
                 sizeUsd,
                 entrySignal, exitSignal);
     }
 
     private BigDecimal toBigDecimal(double value, int scale) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return BigDecimal.ZERO.setScale(scale, RoundingMode.HALF_UP);
+        }
         return BigDecimal.valueOf(value).setScale(scale, RoundingMode.HALF_UP);
     }
 }

@@ -23,6 +23,9 @@ public class EquityPointMapper {
     }
 
     private BigDecimal toBigDecimal(double value) {
+        if (Double.isNaN(value) || Double.isInfinite(value)) {
+            return BigDecimal.ZERO.setScale(SCALE_DECIMALS, RoundingMode.HALF_UP);
+        }
         return BigDecimal.valueOf(value).setScale(SCALE_DECIMALS, RoundingMode.HALF_UP);
     }
 }

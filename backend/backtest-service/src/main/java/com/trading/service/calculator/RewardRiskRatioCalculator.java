@@ -37,7 +37,11 @@ public class RewardRiskRatioCalculator {
         if (avgWin == 0.0) {
             return 0.0;
         }
-        return BigDecimal.valueOf(avgWin / avgLoss)
+        double ratio = avgWin / avgLoss;
+        if (Double.isNaN(ratio) || Double.isInfinite(ratio)) {
+            return 0.0;
+        }
+        return BigDecimal.valueOf(ratio)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();
     }

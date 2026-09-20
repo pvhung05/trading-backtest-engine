@@ -31,6 +31,9 @@ public class AverageLossCalculator {
             return 0.0;
         }
         double avg = losses.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+        if (Double.isNaN(avg) || Double.isInfinite(avg)) {
+            return 0.0;
+        }
         return BigDecimal.valueOf(avg)
                 .setScale(6, RoundingMode.HALF_UP)
                 .doubleValue();
