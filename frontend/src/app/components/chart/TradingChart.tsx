@@ -224,9 +224,12 @@ export function TradingChart({
 
   const isStrategyHidden = useMemo(() => {
     if (allStrategiesHidden) return true;
-    if (!activeStrategyName) return false;
+    if (!selectedStrategies || selectedStrategies.length === 0) return true;
+    if (!activeStrategyName) return true;
+    const isSelected = selectedStrategies.some((s) => s.name === activeStrategyName);
+    if (!isSelected) return true;
     return hiddenStrategies?.has(activeStrategyName) ?? false;
-  }, [allStrategiesHidden, activeStrategyName, hiddenStrategies]);
+  }, [allStrategiesHidden, activeStrategyName, selectedStrategies, hiddenStrategies]);
 
   // 1. Fetch initial klines when symbol or interval changes
   useEffect(() => {

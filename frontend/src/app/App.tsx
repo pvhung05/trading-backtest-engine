@@ -9,7 +9,7 @@ import { Watchlist } from './components/market';
 import { LoginPage } from './components/auth';
 import { ErrorBoundary } from './components/common';
 
-import { ThemeProvider, AuthProvider, OHLCVProvider, useAuth } from './context';
+import { ThemeProvider, AuthProvider, OHLCVProvider, useAuth, useOHLCV } from './context';
 import type { SelectedIndicator, SelectedStrategy } from './types';
 import { getItem, setItem } from './utils';
 
@@ -38,26 +38,23 @@ const DEFAULT_APP_STATE: PersistedAppState = {
 const STORAGE_KEY = 'trading-app-state';
 
 function loadAppState(): PersistedAppState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_APP_STATE;
-    const parsed = JSON.parse(raw);
-    return {
-      ...DEFAULT_APP_STATE,
-      ...parsed,
-      selectedIndicators: Array.isArray(parsed.selectedIndicators)
-        ? parsed.selectedIndicators.map((i: any, idx: number) => ({
-            ...i,
-            id: i.id || `ind-${idx}-${Date.now()}`,
-          }))
-        : DEFAULT_APP_STATE.selectedIndicators,
-      selectedStrategies: Array.isArray(parsed.selectedStrategies)
-        ? parsed.selectedStrategies
-        : DEFAULT_APP_STATE.selectedStrategies,
-    };
-  } catch {
-    return DEFAULT_APP_STATE;
-  }
+  const saved = getItem<PersistedAppState>(STORAGE_KEY);
+  if (!saved) return DEFAULT_APP_STATE;
+  return {
+    selectedIndicators: Array.isArray(saved.selectedIndicators)
+      ? saved.selectedIndicators
+      : DEFAULT_APP_STATE.selectedIndicators,
+    selectedStrategies: Array.isArray(saved.selectedStrategies)
+      ? saved.selectedStrategies
+      : DEFAULT_APP_STATE.selectedStrategies,
+    activeView: saved.activeView || DEFAULT_APP_STATE.activeView,
+    activeTimeframe: saved.activeTimeframe || DEFAULT_APP_STATE.activeTimeframe,
+    dateRange: Array.isArray(saved.dateRange) && saved.dateRange.length === 2
+      ? saved.dateRange
+      : DEFAULT_APP_STATE.dateRange,
+    capital: typeof saved.capital === 'number' ? saved.capital : DEFAULT_APP_STATE.capital,
+    chartHidden: typeof saved.chartHidden === 'boolean' ? saved.chartHidden : DEFAULT_APP_STATE.chartHidden,
+  };
 }
 
 export default function App() {
@@ -90,10 +87,15 @@ function AppGate() {
     );
   }
   if (!user) return <LoginPage />;
-  return <AppShell userName={user.name} onLogout={logout} />;
+  return (
+    <OHLCVProvider>
+      <AppShell userName={user.name} onLogout={logout} />
+    </OHLCVProvider>
+  );
 }
 
 function AppShell({ userName, onLogout }: { userName: string; onLogout: () => void }) {
+  const { activeStrategyName, setActiveStrategyName, clearStrategyResult } = useOHLCV();
   const initial = loadAppState();
 
   const [selectedIndicators, setSelectedIndicators] = useState<SelectedIndicator[]>(
@@ -253,13 +255,31 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
   };
 
   const handleRemoveStrategy = (name: string) => {
-    setSelectedStrategies((prev) => prev.filter((s) => s.name !== name));
+    setSelectedStrategies((prev) => {
+      const next = prev.filter((s) => s.name !== name);
+      if (next.length === 0) {
+        if (strategyPanelRef.current) {
+          strategyPanelRef.current.collapse();
+          strategyPanelCollapsedRef.current = true;
+        }
+        setStrategyExpanded(false);
+        chartPanelRef.current?.expand();
+        setChartHidden(false);
+        setActiveStrategyName(null);
+      } else if (activeStrategyName === name) {
+        setActiveStrategyName(next[0].name);
+      }
+      return next;
+    });
+
     setHiddenStrategies((prev) => {
       if (!prev.has(name)) return prev;
       const next = new Set(prev);
       next.delete(name);
       return next;
     });
+
+    clearStrategyResult(name);
   };
 
   const handleToggleIndicatorVisibility = (idOrName: string) => {
@@ -297,8 +317,7 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
     : hiddenStrategies;
 
   return (
-    <OHLCVProvider>
-      <div className="size-full flex flex-col bg-gray-50 dark:bg-gray-900 font-sans">
+    <div className="size-full flex flex-col bg-gray-50 dark:bg-gray-900 font-sans">
         <TopToolbar
           onSelectIndicator={handleSelectIndicator}
           onSelectStrategy={handleSelectStrategy}
@@ -439,6 +458,5 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
           </div>
         </div>
       </div>
-    </OHLCVProvider>
   );
 }
