@@ -91,7 +91,7 @@ export function TradeHistoryTable({ trades, onSelectTrade }: TradeHistoryTablePr
       byNumber.set(t.tradeNumber, slot);
     }
     const out: TradePair[] = [];
-    const keys = [...byNumber.keys()].sort((a, b) => a - b);
+    const keys = [...byNumber.keys()].sort((a, b) => b - a);
     for (const k of keys) {
       const slot = byNumber.get(k)!;
       if (slot.entry && slot.exit) {
