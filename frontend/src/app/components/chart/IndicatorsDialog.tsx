@@ -95,7 +95,7 @@ const TAB_LABELS: Record<TabKey, string> = {
 interface IndicatorsDialogProps {
   open: boolean;
   onClose: () => void;
-  onSelect?: (indicator: IndicatorItem) => void;
+  onSelect?: (indicator: IndicatorItem, tab: TabKey) => void;
   initialTab?: TabKey;
 }
 
@@ -211,7 +211,7 @@ export function IndicatorsDialog({
                   <li
                     key={ind.name}
                     onClick={() => {
-                      onSelect?.(ind);
+                      onSelect?.(ind, tab);
                       onClose();
                     }}
                     className="group flex items-center justify-between py-2.5 px-3 rounded-xl cursor-pointer hover:bg-gray-100/80 dark:hover:bg-gray-700/60 transition-all duration-150 active:scale-[0.99]"

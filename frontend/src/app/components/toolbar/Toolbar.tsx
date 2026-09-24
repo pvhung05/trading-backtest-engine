@@ -62,11 +62,13 @@ export function TopToolbar({
   onSelectStrategy,
   userName,
   onLogout,
+  onOpenCommunity,
 }: {
   onSelectIndicator?: (indicator: SelectedIndicator) => void;
   onSelectStrategy?: (strategy: SelectedStrategy) => void;
   userName?: string;
   onLogout?: () => void;
+  onOpenCommunity?: () => void;
 }) {
   const { interval, setInterval } = useOHLCV();
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -80,7 +82,7 @@ export function TopToolbar({
           <div className="flex items-center gap-2">
             {userName ? (
               <>
-                <UserMenu userName={userName} onLogout={onLogout} />
+                <UserMenu userName={userName} onLogout={onLogout} onOpenCommunity={onOpenCommunity} />
                 <span className="font-semibold text-sm text-gray-900 dark:text-gray-100">{userName}</span>
               </>
             ) : (
@@ -172,47 +174,92 @@ export function TopToolbar({
   );
 }
 
-export function ChartHeader() {
-  const { data, symbol } = useOHLCV();
+export function ChartHeader({
+  onSelectIndicator,
+  onSelectStrategy,
+}: {
+  onSelectIndicator?: (indicator: SelectedIndicator) => void;
+  onSelectStrategy?: (strategy: SelectedStrategy) => void;
+}) {
+  const { data, symbol, interval, setInterval } = useOHLCV();
+  const [indicatorsOpen, setIndicatorsOpen] = useState(false);
 
   const isUp = !data.change?.startsWith('-');
   const changeColor = isUp ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
 
   return (
-    <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-4 text-xs select-none overflow-x-auto text-gray-700 dark:text-gray-300">
-      <div className="flex items-center gap-2 shrink-0">
-        <div className="w-5 h-5 bg-gradient-to-tr from-amber-500 to-orange-400 rounded-md flex items-center justify-center text-white text-[10px] font-bold shadow-2xs">
-          ₿
-        </div>
-        <span className="font-semibold text-gray-900 dark:text-gray-100">{symbol}</span>
-      </div>
-
-      <div className="w-px h-3.5 bg-gray-200 dark:bg-gray-700 shrink-0" />
-
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-1">
-          <span className="text-gray-400 dark:text-gray-500 font-medium">O</span>
-          <span className="font-semibold text-gray-800 dark:text-gray-200 tabular-nums">{data.open || '—'}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-gray-400 dark:text-gray-500 font-medium">H</span>
-          <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{data.high || '—'}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-gray-400 dark:text-gray-500 font-medium">L</span>
-          <span className="font-semibold text-rose-600 dark:text-rose-400 tabular-nums">{data.low || '—'}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="text-gray-400 dark:text-gray-500 font-medium">C</span>
-          <span className={`font-semibold tabular-nums ${changeColor}`}>{data.close || '—'}</span>
-        </div>
-        {data.change && data.change !== '—' && (
-          <div className={`flex items-center gap-1 font-semibold tabular-nums ${changeColor}`}>
-            <span>{data.change}</span>
-            <span>({data.changePct})</span>
+    <>
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 py-1.5 flex items-center gap-3 text-xs select-none relative z-20 text-gray-700 dark:text-gray-300 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-5 h-5 bg-gradient-to-tr from-amber-500 to-orange-400 rounded-md flex items-center justify-center text-white text-[10px] font-bold shadow-2xs">
+            ₿
           </div>
-        )}
+          <span className="font-semibold text-gray-900 dark:text-gray-100">{symbol}</span>
+        </div>
+
+        <div className="w-px h-3.5 bg-gray-200 dark:bg-gray-700 shrink-0" />
+
+        <div className="shrink-0">
+          <IntervalDropdown value={interval} onChange={setInterval} />
+        </div>
+
+        <div className="w-px h-3.5 bg-gray-200 dark:bg-gray-700 shrink-0" />
+
+        <button
+          onClick={() => setIndicatorsOpen(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-gray-100 dark:hover:bg-gray-700/80 rounded-md text-xs font-medium text-gray-700 dark:text-gray-200 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
+        >
+          <BarChart2 className="w-3.5 h-3.5 text-blue-500" />
+          <span>Indicators</span>
+        </button>
+
+        <div className="w-px h-3.5 bg-gray-200 dark:bg-gray-700 shrink-0" />
+
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 dark:text-gray-500 font-medium">O</span>
+            <span className="font-semibold text-gray-800 dark:text-gray-200 tabular-nums">{data.open || '—'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 dark:text-gray-500 font-medium">H</span>
+            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{data.high || '—'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 dark:text-gray-500 font-medium">L</span>
+            <span className="font-semibold text-rose-600 dark:text-rose-400 tabular-nums">{data.low || '—'}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-gray-400 dark:text-gray-500 font-medium">C</span>
+            <span className={`font-semibold tabular-nums ${changeColor}`}>{data.close || '—'}</span>
+          </div>
+          {data.change && data.change !== '—' && (
+            <div className={`flex items-center gap-1 font-semibold tabular-nums ${changeColor}`}>
+              <span>{data.change}</span>
+              <span>({data.changePct})</span>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+
+      <IndicatorsDialog
+        open={indicatorsOpen}
+        onClose={() => setIndicatorsOpen(false)}
+        onSelect={(ind, tab) => {
+          if (tab === 'strategies' || ind.strategyType) {
+            onSelectStrategy?.({
+              name: ind.name,
+              badge: ind.badge,
+            });
+          } else {
+            onSelectIndicator?.({
+              id: `ind-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+              name: ind.name,
+              type: ind.name,
+              badge: ind.badge,
+            });
+          }
+        }}
+      />
+    </>
   );
 }

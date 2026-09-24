@@ -546,6 +546,11 @@ export function TradingChart({
         borderColor: palette.border,
         timeVisible: true,
         secondsVisible: false,
+        rightOffset: 12,
+        barSpacing: 10,
+        minBarSpacing: 2,
+        fixLeftEdge: false,
+        fixRightEdge: false,
       },
     });
 
@@ -607,6 +612,9 @@ export function TradingChart({
         }))
       );
       updateCulledMarkersRef.current?.();
+      requestAnimationFrame(() => {
+        chart.timeScale().fitContent();
+      });
     }
 
     // High performance throttled crosshair move (requestAnimationFrame)
@@ -743,6 +751,12 @@ export function TradingChart({
     candleSeriesRef.current.setData(candleData);
     updateCulledMarkersRef.current?.();
     volumeSeriesRef.current.setData(volumeData);
+
+    requestAnimationFrame(() => {
+      if (chartRef.current) {
+        chartRef.current.timeScale().fitContent();
+      }
+    });
 
     const last = candles[candles.length - 1];
     const prev = candles[candles.length - 2] || last;

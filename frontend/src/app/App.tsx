@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
-import { TopToolbar, ChartHeader } from './components/toolbar';
+import { ChartHeader } from './components/toolbar';
 import { TradingChart, TimeframeBar } from './components/chart';
 import { StrategyBar } from './components/strategy';
 import { Watchlist } from './components/market';
 import { LoginPage } from './components/auth';
 import { ErrorBoundary } from './components/common';
+import { CommunityPage, TradingViewNavbar } from './community';
 
 import { ThemeProvider, AuthProvider, OHLCVProvider, useAuth, useOHLCV } from './context';
 import type { SelectedIndicator, SelectedStrategy } from './types';
@@ -97,6 +98,7 @@ function AppGate() {
 function AppShell({ userName, onLogout }: { userName: string; onLogout: () => void }) {
   const { activeStrategyName, setActiveStrategyName, clearStrategyResult } = useOHLCV();
   const initial = loadAppState();
+  const [appPage, setAppPage] = useState<'trading' | 'community'>('trading');
 
   const [selectedIndicators, setSelectedIndicators] = useState<SelectedIndicator[]>(
     initial.selectedIndicators
@@ -318,19 +320,27 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
 
   return (
     <div className="size-full flex flex-col bg-gray-50 dark:bg-gray-900 font-sans">
-        <TopToolbar
-          onSelectIndicator={handleSelectIndicator}
-          onSelectStrategy={handleSelectStrategy}
-          userName={userName}
-          onLogout={onLogout}
-        />
+      {/* Persistent Global Header */}
+      <TradingViewNavbar
+        activeNav={appPage === 'community' ? 'community' : 'products'}
+        onNavChange={(nav) => setAppPage(nav === 'community' ? 'community' : 'trading')}
+      />
 
-        <div className="flex-1 flex overflow-hidden">
-          <div className="flex-1 flex flex-col min-w-0">
-            <PanelGroup direction="horizontal">
-              <Panel defaultSize={82} minSize={50}>
-                <div className="h-full flex flex-col bg-white dark:bg-gray-800">
-                  <ChartHeader />
+      {appPage === 'community' ? (
+        <div className="flex-1 overflow-y-auto">
+          <CommunityPage onBackToTrading={() => setAppPage('trading')} hideHeader />
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col min-w-0">
+              <PanelGroup direction="horizontal">
+                <Panel defaultSize={82} minSize={50}>
+                  <div className="h-full flex flex-col bg-white dark:bg-gray-800">
+                    <ChartHeader
+                      onSelectIndicator={handleSelectIndicator}
+                      onSelectStrategy={handleSelectStrategy}
+                    />
 
                   <div className="flex-1 min-h-0">
                     <PanelGroup direction="vertical">
@@ -458,5 +468,7 @@ function AppShell({ userName, onLogout }: { userName: string; onLogout: () => vo
           </div>
         </div>
       </div>
+    )}
+  </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronDown } from 'lucide-react';
 
 export interface IntervalOption {
   value: string;
@@ -65,13 +65,14 @@ export function IntervalDropdown({ value, onChange }: IntervalDropdownProps) {
     <div ref={containerRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="px-3 py-1.5 text-sm font-medium hover:bg-gray-100 dark:hover:bg-gray-700/80 rounded-lg text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-all duration-150 active:scale-[0.98] cursor-pointer"
+        className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold hover:bg-gray-100 dark:hover:bg-gray-700/80 rounded-md text-gray-700 dark:text-gray-200 hover:text-gray-900 dark:hover:text-white transition-all duration-150 active:scale-[0.98] cursor-pointer"
       >
-        {value}
+        <span>{value}</span>
+        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1.5 w-72 bg-white/95 dark:bg-gray-800/95 backdrop-blur-md rounded-xl shadow-xl border border-gray-200/80 dark:border-gray-700/80 z-50 overflow-hidden">
+        <div className="absolute top-full left-0 mt-1.5 w-72 bg-white dark:bg-[#1e222d] rounded-xl shadow-2xl border border-gray-200/80 dark:border-gray-700 z-[100] overflow-hidden">
           {/* Search */}
           <div className="p-2.5 border-b border-gray-100 dark:border-gray-700/80">
             <div className="relative">

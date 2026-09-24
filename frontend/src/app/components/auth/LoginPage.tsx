@@ -96,11 +96,11 @@ function getPasswordStrength(pw: string): { score: number; label: string; color:
   if (/[A-Z]/.test(pw)) score++;
   if (/[0-9]/.test(pw)) score++;
   if (/[^A-Za-z0-9]/.test(pw)) score++;
-  if (score <= 1) return { score, label: 'Rất yếu', color: '#ef4444' };
-  if (score === 2) return { score, label: 'Yếu', color: '#f97316' };
-  if (score === 3) return { score, label: 'Trung bình', color: '#f59e0b' };
-  if (score === 4) return { score, label: 'Mạnh', color: '#22c55e' };
-  return { score, label: 'Rất mạnh', color: '#10b981' };
+  if (score <= 1) return { score, label: 'Very Weak', color: '#ef4444' };
+  if (score === 2) return { score, label: 'Weak', color: '#f97316' };
+  if (score === 3) return { score, label: 'Medium', color: '#f59e0b' };
+  if (score === 4) return { score, label: 'Strong', color: '#22c55e' };
+  return { score, label: 'Very Strong', color: '#10b981' };
 }
 
 // ===== CANVAS ANIMATION COMPONENT - QUANT BACKTEST ENGINE =====
@@ -612,30 +612,30 @@ export function LoginPage() {
 
     const trimmedUser = username.trim();
     if (!trimmedUser) {
-      errs.username = 'Vui lòng nhập tên đăng nhập';
+      errs.username = 'Please enter your username';
       shakes.push('username');
     }
 
     if (mode === 'signup') {
       const trimmedEmail = email.trim();
       if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-        errs.email = 'Vui lòng nhập email hợp lệ';
+        errs.email = 'Please enter a valid email address';
         shakes.push('email');
       }
     }
 
     if (!password || password.length < 8) {
-      errs.password = 'Mật khẩu tối thiểu 8 ký tự';
+      errs.password = 'Password must be at least 8 characters';
       shakes.push('password');
     }
 
     if (mode === 'signup') {
       if (confirmPw !== password) {
-        errs.confirmPw = 'Mật khẩu xác nhận không khớp';
+        errs.confirmPw = 'Passwords do not match';
         shakes.push('confirmPw');
       }
       if (!agreeTerms) {
-        errs.terms = 'Vui lòng đồng ý điều khoản dịch vụ';
+        errs.terms = 'Please accept the Terms of Service';
         shakes.push('terms');
       }
     }
@@ -663,20 +663,20 @@ export function LoginPage() {
           email: email.trim(),
           password,
         });
-        setToast('Đăng ký tài khoản thành công 🎉');
+        setToast('Account registered successfully 🎉');
       } else {
         await login({
           username: username.trim(),
           password,
         });
-        setToast('Đăng nhập thành công 🎉');
+        setToast('Signed in successfully 🎉');
       }
     } catch (err: any) {
       console.error('Auth error:', err);
       const msg =
         err?.message ||
         (err?.errors ? Object.values(err.errors).join(', ') : null) ||
-        'Xác thực không thành công. Vui lòng kiểm tra lại thông tin đăng nhập.';
+        'Authentication failed. Please verify your credentials.';
       setErrors({ form: msg });
       setShakeFields(['username', 'password']);
     } finally {
@@ -926,7 +926,7 @@ export function LoginPage() {
               </span>
             </div>
             <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">
-              Nền tảng kiểm thử và phân tích chiến lược giao dịch tự động
+              Automated Quantitative Strategy Backtesting & Analytics Platform
             </p>
           </div>
 
@@ -934,7 +934,7 @@ export function LoginPage() {
           <div className="w-full max-w-[370px] mode-content" key={mode}>
             {/* Form Title */}
             <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6 text-center tracking-tight">
-              {mode === 'signup' ? 'Tạo tài khoản mới' : 'Chào mừng trở lại'}
+              {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
             </h2>
 
             {/* Form-level Error Alert */}
@@ -948,9 +948,9 @@ export function LoginPage() {
             <button
               onClick={(e) => {
                 ripple(e);
-                setToast('Google OAuth đang được liên kết…');
+                setToast('Google OAuth connecting…');
               }}
-              aria-label="Đăng nhập với Google"
+              aria-label="Sign in with Google"
               className="w-full py-2.5 px-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm font-semibold cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-200 mb-3 hover:border-blue-600 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-500/10"
             >
               <svg width="20" height="20" viewBox="0 0 24 24">
@@ -980,8 +980,8 @@ export function LoginPage() {
                 <button
                   key={s.id}
                   className="social-btn flex-1 aspect-square border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 cursor-pointer flex items-center justify-center p-2.5 hover:border-blue-500 hover:shadow-md transition-all"
-                  aria-label={`Đăng nhập với ${s.label}`}
-                  onClick={() => setToast(`Đăng nhập với ${s.label} đang kích hoạt…`)}
+                  aria-label={`Sign in with ${s.label}`}
+                  onClick={() => setToast(`Connecting with ${s.label}…`)}
                   style={{ color: s.color }}
                 >
                   <span className="tooltip">{s.label}</span>
@@ -993,7 +993,7 @@ export function LoginPage() {
             {/* Divider */}
             <div className="flex items-center gap-3 mb-3">
               <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-              <span className="text-xs text-gray-400 font-medium">hoặc</span>
+              <span className="text-xs text-gray-400 font-medium">or</span>
               <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
             </div>
 
@@ -1010,7 +1010,7 @@ export function LoginPage() {
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                 <polyline points="22,6 12,13 2,6" />
               </svg>
-              <span>{mode === 'signup' ? 'Đăng ký với Tài khoản' : 'Đăng nhập với Tài khoản'}</span>
+              <span>{mode === 'signup' ? 'Sign up with Credentials' : 'Sign in with Credentials'}</span>
             </button>
 
             {/* Slide-down Form */}
@@ -1020,7 +1020,7 @@ export function LoginPage() {
                 <div className={shakeFields.includes('username') ? 'shake' : ''}>
                   <FloatingInput
                     id="username"
-                    label="Tên đăng nhập"
+                    label="Username"
                     type="text"
                     value={username}
                     onChange={setUsername}
@@ -1034,7 +1034,7 @@ export function LoginPage() {
                   <div className={shakeFields.includes('email') ? 'shake' : ''}>
                     <FloatingInput
                       id="email"
-                      label="Địa chỉ Email"
+                      label="Email Address"
                       type="email"
                       value={email}
                       onChange={setEmail}
@@ -1048,7 +1048,7 @@ export function LoginPage() {
                 <div className={shakeFields.includes('password') ? 'shake' : ''}>
                   <FloatingInput
                     id="password"
-                    label="Mật khẩu"
+                    label="Password"
                     type={showPw ? 'text' : 'password'}
                     value={password}
                     onChange={setPassword}
@@ -1057,7 +1057,7 @@ export function LoginPage() {
                     rightElement={
                       <button
                         type="button"
-                        aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                        aria-label={showPw ? 'Hide password' : 'Show password'}
                         onClick={() => setShowPw((p) => !p)}
                         className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer"
                       >
@@ -1117,7 +1117,7 @@ export function LoginPage() {
                   <div className={shakeFields.includes('confirmPw') ? 'shake' : ''}>
                     <FloatingInput
                       id="confirmPw"
-                      label="Xác nhận mật khẩu"
+                      label="Confirm Password"
                       type={showPw ? 'text' : 'password'}
                       value={confirmPw}
                       onChange={setConfirmPw}
@@ -1138,13 +1138,13 @@ export function LoginPage() {
                         className="mt-0.5 accent-blue-600 rounded shrink-0 cursor-pointer"
                       />
                       <span>
-                        Tôi đồng ý với{' '}
+                        I agree to the{' '}
                         <a href="#" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
-                          Điều khoản dịch vụ
+                          Terms of Service
                         </a>{' '}
-                        và{' '}
+                        and{' '}
                         <a href="#" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
-                          Chính sách bảo mật
+                          Privacy Policy
                         </a>
                       </span>
                     </label>
@@ -1167,12 +1167,12 @@ export function LoginPage() {
                   {busy ? (
                     <>
                       <Loader2 className="size-4 animate-spin text-white" />
-                      <span>Đang xử lý…</span>
+                      <span>Processing…</span>
                     </>
                   ) : mode === 'signup' ? (
-                    'Tạo tài khoản'
+                    'Create Account'
                   ) : (
-                    'Đăng nhập'
+                    'Sign In'
                   )}
                 </button>
               </form>
@@ -1182,12 +1182,12 @@ export function LoginPage() {
           {/* Mode Switcher Footer */}
           <div className="mt-7 w-full max-w-[370px] pt-4 border-t border-gray-200 dark:border-gray-800 text-center">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              {mode === 'signup' ? 'Đã có tài khoản? ' : 'Chưa có tài khoản? '}
+              {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
               <button
                 onClick={() => switchMode(mode === 'signup' ? 'signin' : 'signup')}
                 className="text-blue-600 dark:text-blue-400 font-semibold cursor-pointer underline underline-offset-2 hover:text-blue-700"
               >
-                {mode === 'signup' ? 'Đăng nhập ngay' : 'Đăng ký tài khoản'}
+                {mode === 'signup' ? 'Sign in now' : 'Create account'}
               </button>
             </p>
           </div>
