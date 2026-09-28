@@ -5,16 +5,21 @@ import { TradingViewNavbar } from './components/TradingViewNavbar';
 import { CategoryFilterBar } from './components/CategoryFilterBar';
 import { IdeaCard } from './components/IdeaCard';
 import { PublishIdeaModal } from './components/PublishIdeaModal';
-import { IdeaDetailModal } from './components/IdeaDetailModal';
+import { IdeaDetailPage } from './components/IdeaDetailPage';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Search, Sparkles } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 
 interface CommunityPageProps {
   onBackToTrading?: () => void;
   hideHeader?: boolean;
+  onDetailOpenChange?: (open: boolean) => void;
 }
 
-export default function CommunityPage({ onBackToTrading, hideHeader = false }: CommunityPageProps) {
+export default function CommunityPage({
+  onBackToTrading,
+  hideHeader = false,
+  onDetailOpenChange,
+}: CommunityPageProps) {
   const { user } = useAuth();
   const [ideas, setIdeas] = useState<TradingIdea[]>(initialTradingIdeas);
   const [activeFilter, setActiveFilter] = useState<IdeaFilter>('popular');
@@ -22,8 +27,13 @@ export default function CommunityPage({ onBackToTrading, hideHeader = false }: C
   const [searchQuery, setSearchQuery] = useState('');
   const [likedIdeaIds, setLikedIdeaIds] = useState<Set<string>>(new Set());
 
-  const [selectedIdea, setSelectedIdea] = useState<TradingIdea | null>(null);
+  const [selectedIdea, setSelectedIdeaState] = useState<TradingIdea | null>(null);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+
+  const setSelectedIdea = (idea: TradingIdea | null) => {
+    setSelectedIdeaState(idea);
+    onDetailOpenChange?.(!!idea);
+  };
 
   // Filter & Search logic
   const filteredIdeas = useMemo(() => {
@@ -141,56 +151,69 @@ export default function CommunityPage({ onBackToTrading, hideHeader = false }: C
         />
       )}
 
-      {/* Main Container */}
-      <main className="max-w-[1440px] mx-auto px-4 lg:px-8 py-6 w-full flex-1">
-        {/* Category & Filter Navigation */}
-        <CategoryFilterBar
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-          activeCategory={activeCategory}
-          onCategoryChange={setActiveCategory}
+      {/* Main Container: Render Detail Page or Grid List */}
+      {selectedIdea ? (
+        <IdeaDetailPage
+          idea={selectedIdea}
+          onBack={() => setSelectedIdea(null)}
+          onSelectRelatedIdea={(rel) => setSelectedIdea(rel)}
+          allIdeas={ideas}
+          onLike={handleLike}
+          onBoost={handleBoost}
+          onAddComment={handleAddComment}
+          isLiked={likedIdeaIds.has(selectedIdea.id)}
         />
+      ) : (
+        <main className="max-w-[1440px] mx-auto px-4 lg:px-8 py-6 w-full flex-1">
+          {/* Category & Filter Navigation */}
+          <CategoryFilterBar
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+            activeCategory={activeCategory}
+            onCategoryChange={setActiveCategory}
+          />
 
-        {/* Ideas Grid Section */}
-        <div className="py-6">
-          {filteredIdeas.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredIdeas.map((idea) => (
-                <IdeaCard
-                  key={idea.id}
-                  idea={idea}
-                  onClick={(i) => setSelectedIdea(i)}
-                  onLike={handleLike}
-                  onBoost={handleBoost}
-                  isLiked={likedIdeaIds.has(idea.id)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="py-16 text-center bg-gray-50 dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-3xl p-8 space-y-4 max-w-xl mx-auto my-8">
-              <div className="size-16 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto text-2xl">
-                <Search className="size-8" />
+          {/* Ideas Grid Section */}
+          <div className="py-6">
+            {filteredIdeas.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredIdeas.map((idea) => (
+                  <IdeaCard
+                    key={idea.id}
+                    idea={idea}
+                    onClick={(i) => setSelectedIdea(i)}
+                    onLike={handleLike}
+                    onBoost={handleBoost}
+                    isLiked={likedIdeaIds.has(idea.id)}
+                  />
+                ))}
               </div>
-              <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-                No matching ideas found
-              </h3>
-              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                Try searching with different keywords or switch categories to explore more community ideas.
-              </p>
-              <button
-                onClick={() => {
-                  setSearchQuery('');
-                  setActiveCategory('all');
-                  setActiveFilter('popular');
-                }}
-                className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors cursor-pointer"
-              >
-                Reset filters
-              </button>
-            </div>
-          )}
-        </div>
-      </main>
+            ) : (
+              <div className="py-16 text-center bg-gray-50 dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-3xl p-8 space-y-4 max-w-xl mx-auto my-8">
+                <div className="size-16 rounded-full bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto text-2xl">
+                  <Search className="size-8" />
+                </div>
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white">
+                  No matching ideas found
+                </h3>
+                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                  Try searching with different keywords or switch categories to explore more community ideas.
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchQuery('');
+                    setActiveCategory('all');
+                    setActiveFilter('popular');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-xl hover:bg-blue-700 transition-colors cursor-pointer"
+                >
+                  Reset filters
+                </button>
+              </div>
+            )}
+          </div>
+        </main>
+      )}
 
       {/* Floating Action Button on mobile */}
       <button
@@ -207,16 +230,7 @@ export default function CommunityPage({ onBackToTrading, hideHeader = false }: C
         onClose={() => setIsPublishOpen(false)}
         onPublish={handlePublish}
       />
-
-      <IdeaDetailModal
-        idea={selectedIdea}
-        isOpen={!!selectedIdea}
-        onClose={() => setSelectedIdea(null)}
-        onLike={handleLike}
-        onBoost={handleBoost}
-        onAddComment={handleAddComment}
-        isLiked={selectedIdea ? likedIdeaIds.has(selectedIdea.id) : false}
-      />
     </div>
   );
 }
+

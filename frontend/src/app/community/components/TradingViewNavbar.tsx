@@ -70,15 +70,6 @@ export function TradingViewNavbar({
 
         {/* Right Action Bar */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* User profile dropdown */}
-          <div className="relative">
-            <UserMenu
-              userName={user?.name || 'Trader Alex'}
-              onLogout={logout}
-              onOpenCommunity={() => onNavChange?.('community')}
-            />
-          </div>
-
           {/* Primary CTA: Get started / Publish */}
           <button
             onClick={onPublishClick}
@@ -87,6 +78,15 @@ export function TradingViewNavbar({
             <Plus className="size-4" />
             <span>Get started</span>
           </button>
+
+          {/* User profile dropdown (Vị trí ngoài cùng bên phải đồng nhất) */}
+          <div className="relative">
+            <UserMenu
+              userName={user?.name || 'Trader Alex'}
+              onLogout={logout}
+              onOpenCommunity={() => onNavChange?.('community')}
+            />
+          </div>
         </div>
       </div>
     </header>
