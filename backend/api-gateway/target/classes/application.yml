@@ -57,6 +57,12 @@ spring:
           predicates:
             - Path=/api/backtest/**, /api/backtest-runs/**, /api/execution/**, /api/portfolio/**, /api/metrics/**
 
+        # Community Service Routes
+        - id: community-service
+          uri: http://localhost:8084
+          predicates:
+            - Path=/api/community/**
+
 management:
   endpoints:
     web:

@@ -21,6 +21,7 @@
 		<module>auth-service</module>
 		<module>backtest-service</module>
 		<module>realtime-service</module>
+		<module>community-service</module>
 	</modules>
 
 	<properties>
