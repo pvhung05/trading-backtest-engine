@@ -29,6 +29,7 @@ public class TradingIdeaResponse {
     private String videoDuration;
     private String summary;
     private String content;
+    private Long backtestRunId;
     private AuthorDto author;
     private Integer likes;
     private Integer comments;

@@ -93,11 +93,12 @@ public class NotificationService {
     private String mapTypeToFrontend(String backendType) {
         if (backendType == null) return "like";
         return switch (backendType.toUpperCase()) {
-            case "IDEA_LIKE", "POST_REACT" -> "like";
-            case "IDEA_COMMENT", "POST_COMMENT" -> "comment";
+            case "IDEA_LIKE", "POST_REACT", "IDEA_COMMENT_LIKE" -> "like";
+            case "IDEA_COMMENT", "POST_COMMENT", "POST_COMMENT_REPLY" -> "comment";
             case "FRIEND_REQUEST" -> "friend_request";
             case "FRIEND_ACCEPT" -> "friend_accept";
             case "NEW_FOLLOWER" -> "mention";
+            case "GROUP_JOIN", "GROUP_JOIN_REQUEST", "GROUP_JOIN_APPROVED", "GROUP_JOIN_REJECTED", "GROUP_MEMBER_REMOVED", "GROUP_ADMIN_PROMOTED" -> "group";
             default -> backendType.toLowerCase();
         };
     }

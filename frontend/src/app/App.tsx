@@ -2,7 +2,17 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, AuthProvider, OHLCVProvider, useAuth } from './context';
 import { LoginPage } from './components/auth';
 import { AppLayout } from './components/layout/AppLayout';
-import { ProductsPage, CommunityPage, IdeaDetailPage, NotFoundPage } from './pages';
+import { CommunityLayout } from './components/layout/CommunityLayout';
+import {
+  ProductsPage,
+  CommunityPage,
+  FeedPage,
+  GroupsPage,
+  FriendsPage,
+  IdeaDetailPage,
+  UserProfilePage,
+  NotFoundPage,
+} from './pages';
 
 export default function App() {
   return (
@@ -49,8 +59,19 @@ function AppGate() {
             {/* Products Page (Trading & Backtest Engine) */}
             <Route path="/products" element={<ProductsPage />} />
             
-            {/* Community Page (Ideas & Market News list) */}
-            <Route path="/community" element={<CommunityPage />} />
+            {/* Community Suite wrapped in permanent persistent CommunityLayout */}
+            <Route element={<CommunityLayout />}>
+              <Route path="/community" element={<CommunityPage />} />
+              <Route path="/community/ideas" element={<CommunityPage />} />
+              <Route path="/community/feed" element={<FeedPage />} />
+              <Route path="/community/groups" element={<GroupsPage />} />
+              <Route path="/community/friends" element={<FriendsPage />} />
+              <Route path="/community/profile" element={<UserProfilePage />} />
+              <Route path="/community/profile/:userId" element={<UserProfilePage />} />
+              <Route path="/community/category/:category" element={<CommunityPage />} />
+            </Route>
+
+            <Route path="/profile" element={<Navigate to="/community/profile" replace />} />
             <Route path="/community/:category" element={<CommunityPage />} />
             
             {/* Single Idea Detail View */}

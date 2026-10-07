@@ -21,6 +21,7 @@ import com.trading.community.dto.CreatePostRequest;
 import com.trading.community.dto.PostCommentRequest;
 import com.trading.community.dto.PostCommentResponse;
 import com.trading.community.dto.PostResponse;
+import com.trading.community.dto.UpdatePostRequest;
 import com.trading.community.dto.UserDto;
 import com.trading.community.model.Post;
 import com.trading.community.model.PostComment;
@@ -151,6 +152,33 @@ public class PostService {
     }
 
     @Transactional
+    public PostResponse updatePost(Long id, UpdatePostRequest request, UserPrincipal user) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found: " + id));
+
+        if (!post.getUserId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("You do not own this post");
+        }
+
+        if (request.getContent() != null && !request.getContent().isBlank()) {
+            post.setContent(request.getContent().trim());
+        }
+        if (request.getPrivacy() != null) {
+            post.setPrivacy(request.getPrivacy().toLowerCase());
+        }
+        if (request.getMedia() != null) {
+            try {
+                post.setMedia(objectMapper.writeValueAsString(request.getMedia()));
+            } catch (Exception e) {
+                post.setMedia(String.join(",", request.getMedia()));
+            }
+        }
+
+        Post saved = postRepository.save(post);
+        return toResponse(saved, user.getId());
+    }
+
+    @Transactional
     public PostResponse reactToPost(Long postId, String reactionType, UserPrincipal user) {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
@@ -225,15 +253,28 @@ public class PostService {
         post.setCommentCount(post.getCommentCount() + 1);
         postRepository.save(post);
 
-        // If it's a reply, increment parent's replyCount
+        // If it's a reply, increment parent's replyCount and notify parent author
         if (request.getParentId() != null) {
             commentRepository.findById(request.getParentId()).ifPresent(parent -> {
                 parent.setReplyCount(parent.getReplyCount() + 1);
                 commentRepository.save(parent);
+
+                if (!parent.getUserId().equals(user.getId())) {
+                    notificationService.createNotification(
+                            parent.getUserId(),
+                            user.getId(),
+                            profile.getDisplayName(),
+                            profile.getAvatarUrl(),
+                            "POST_COMMENT_REPLY",
+                            post.getId(),
+                            "POST",
+                            profile.getDisplayName() + " replied to your comment"
+                    );
+                }
             });
         }
 
-        // Send notification
+        // Send notification to post author
         notificationService.createNotification(
                 post.getUserId(),
                 user.getId(),
@@ -246,6 +287,41 @@ public class PostService {
         );
 
         return toCommentResponse(saved, user.getId(), false);
+    }
+
+    @Transactional
+    public void deleteComment(Long postId, Long commentId, UserPrincipal user) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new IllegalArgumentException("Post not found: " + postId));
+
+        PostComment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found: " + commentId));
+
+        if (!comment.getPostId().equals(postId)) {
+            throw new IllegalArgumentException("Comment does not belong to this post");
+        }
+
+        if (!comment.getUserId().equals(user.getId()) && !post.getUserId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Not authorized to delete this comment");
+        }
+
+        int removedCount = 1;
+        if (comment.getParentId() == null) {
+            long replies = commentRepository.countByParentId(commentId);
+            removedCount += (int) replies;
+            commentRepository.deleteByParentId(commentId);
+        } else {
+            commentRepository.findById(comment.getParentId()).ifPresent(parent -> {
+                parent.setReplyCount(Math.max(0, parent.getReplyCount() - 1));
+                commentRepository.save(parent);
+            });
+        }
+
+        commentLikeRepository.deleteByCommentId(commentId);
+        commentRepository.delete(comment);
+
+        post.setCommentCount(Math.max(0, post.getCommentCount() - removedCount));
+        postRepository.save(post);
     }
 
     @Transactional(readOnly = true)

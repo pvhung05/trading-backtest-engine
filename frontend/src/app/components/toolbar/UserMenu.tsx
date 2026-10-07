@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Moon, LogOut, X, Shield, Mail, Calendar } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +11,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ userName, onLogout }: UserMenuProps) {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -81,7 +83,7 @@ export function UserMenu({ userName, onLogout }: UserMenuProps) {
                 type="button"
                 onClick={() => {
                   setOpen(false);
-                  setProfileOpen(true);
+                  navigate('/community/profile');
                 }}
                 className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700/60 text-sm font-medium transition-colors text-left cursor-pointer group"
                 role="menuitem"

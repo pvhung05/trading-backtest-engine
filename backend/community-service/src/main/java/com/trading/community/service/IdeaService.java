@@ -23,12 +23,14 @@ import com.trading.community.dto.UpdateIdeaRequest;
 import com.trading.community.model.IdeaBookmark;
 import com.trading.community.model.IdeaBoost;
 import com.trading.community.model.IdeaComment;
+import com.trading.community.model.IdeaCommentLike;
 import com.trading.community.model.IdeaLike;
 import com.trading.community.model.TradingIdea;
 import com.trading.community.model.UserProfile;
 import com.trading.community.repository.FollowRepository;
 import com.trading.community.repository.IdeaBookmarkRepository;
 import com.trading.community.repository.IdeaBoostRepository;
+import com.trading.community.repository.IdeaCommentLikeRepository;
 import com.trading.community.repository.IdeaCommentRepository;
 import com.trading.community.repository.IdeaLikeRepository;
 import com.trading.community.repository.TradingIdeaRepository;
@@ -47,6 +49,7 @@ public class IdeaService {
     private final FollowRepository followRepository;
     private final UserProfileService userProfileService;
     private final UserProfileRepository userProfileRepository;
+    private final IdeaCommentLikeRepository commentLikeRepository;
     private final NotificationService notificationService;
 
     public IdeaService(TradingIdeaRepository ideaRepository,
@@ -54,6 +57,7 @@ public class IdeaService {
                        IdeaLikeRepository likeRepository,
                        IdeaBoostRepository boostRepository,
                        IdeaBookmarkRepository bookmarkRepository,
+                       IdeaCommentLikeRepository commentLikeRepository,
                        FollowRepository followRepository,
                        UserProfileService userProfileService,
                        UserProfileRepository userProfileRepository,
@@ -63,6 +67,7 @@ public class IdeaService {
         this.likeRepository = likeRepository;
         this.boostRepository = boostRepository;
         this.bookmarkRepository = bookmarkRepository;
+        this.commentLikeRepository = commentLikeRepository;
         this.followRepository = followRepository;
         this.userProfileService = userProfileService;
         this.userProfileRepository = userProfileRepository;
@@ -131,6 +136,7 @@ public class IdeaService {
                 .videoDuration(request.getVideoDuration())
                 .summary(request.getSummary())
                 .content(request.getContent())
+                .backtestRunId(request.getBacktestRunId())
                 .userId(user.getId())
                 .authorName(profile.getDisplayName())
                 .authorUsername(profile.getUsername())
@@ -168,6 +174,7 @@ public class IdeaService {
         if (request.getCoverImage() != null) idea.setCoverImage(request.getCoverImage());
         if (request.getSummary() != null) idea.setSummary(request.getSummary());
         if (request.getContent() != null) idea.setContent(request.getContent());
+        if (request.getBacktestRunId() != null) idea.setBacktestRunId(request.getBacktestRunId());
         if (request.getTags() != null) {
             idea.setTags(String.join(",", request.getTags()));
         }
@@ -288,15 +295,96 @@ public class IdeaService {
                 profile.getDisplayName() + " commented on your idea: " + idea.getTitle()
         );
 
-        return toCommentResponse(saved);
+        return toCommentResponse(saved, user.getId());
     }
 
     @Transactional(readOnly = true)
     public List<IdeaCommentResponse> getComments(Long id) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
         return commentRepository.findByIdeaIdOrderByCreatedAtAsc(id)
                 .stream()
-                .map(this::toCommentResponse)
+                .map(c -> toCommentResponse(c, currentUserId))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteComment(Long ideaId, Long commentId, UserPrincipal user) {
+        IdeaComment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found: " + commentId));
+
+        if (!comment.getIdeaId().equals(ideaId)) {
+            throw new IllegalArgumentException("Comment does not belong to this idea");
+        }
+
+        TradingIdea idea = ideaRepository.findById(ideaId)
+                .orElseThrow(() -> new IllegalArgumentException("Idea not found: " + ideaId));
+
+        // Only comment author or idea author can delete
+        if (!comment.getUserId().equals(user.getId()) && !idea.getUserId().equals(user.getId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Not authorized to delete this comment");
+        }
+
+        commentLikeRepository.deleteByCommentId(commentId);
+        commentRepository.delete(comment);
+
+        idea.setCommentsCount(Math.max(0, idea.getCommentsCount() - 1));
+        ideaRepository.save(idea);
+    }
+
+    @Transactional
+    public IdeaCommentResponse toggleCommentLike(Long commentId, UserPrincipal user) {
+        IdeaComment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new IllegalArgumentException("Comment not found: " + commentId));
+
+        boolean exists = commentLikeRepository.existsByCommentIdAndUserId(commentId, user.getId());
+        if (exists) {
+            commentLikeRepository.deleteByCommentIdAndUserId(commentId, user.getId());
+            comment.setLikesCount(Math.max(0, comment.getLikesCount() - 1));
+        } else {
+            commentLikeRepository.save(IdeaCommentLike.builder().commentId(commentId).userId(user.getId()).build());
+            comment.setLikesCount(comment.getLikesCount() + 1);
+
+            UserProfile profile = userProfileService.getOrCreateProfile(
+                    user.getId(), user.getUsername(), user.getUsername(), null);
+
+            notificationService.createNotification(
+                    comment.getUserId(),
+                    user.getId(),
+                    profile.getDisplayName(),
+                    profile.getAvatarUrl(),
+                    "IDEA_COMMENT_LIKE",
+                    comment.getIdeaId(),
+                    "IDEA",
+                    profile.getDisplayName() + " liked your comment"
+            );
+        }
+
+        IdeaComment saved = commentRepository.save(comment);
+        return toCommentResponse(saved, user.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TradingIdeaResponse> getBookmarkedIdeas(int page, int size, UserPrincipal user) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<IdeaBookmark> bookmarks = bookmarkRepository.findByUserId(user.getId(), pageable);
+        List<Long> ideaIds = bookmarks.getContent().stream()
+                .map(IdeaBookmark::getIdeaId)
+                .collect(Collectors.toList());
+
+        if (ideaIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        Page<TradingIdea> ideas = ideaRepository.findByIdIn(ideaIds, pageable);
+        return ideas.map(i -> toResponse(i, user.getId()));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TradingIdeaResponse> getIdeasBySymbol(String symbol, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        Page<TradingIdea> ideas = ideaRepository.findBySymbolIgnoreCase(symbol.trim(), pageable);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        return ideas.map(i -> toResponse(i, currentUserId));
     }
 
     @Transactional(readOnly = true)
@@ -366,6 +454,7 @@ public class IdeaService {
                 .videoDuration(idea.getVideoDuration())
                 .summary(idea.getSummary())
                 .content(idea.getContent())
+                .backtestRunId(idea.getBacktestRunId())
                 .author(author)
                 .likes(idea.getLikesCount())
                 .comments(idea.getCommentsCount())
@@ -381,7 +470,12 @@ public class IdeaService {
                 .build();
     }
 
-    private IdeaCommentResponse toCommentResponse(IdeaComment comment) {
+    private IdeaCommentResponse toCommentResponse(IdeaComment comment, Long currentUserId) {
+        boolean hasLiked = false;
+        if (currentUserId != null) {
+            hasLiked = commentLikeRepository.existsByCommentIdAndUserId(comment.getId(), currentUserId);
+        }
+
         AuthorDto author = AuthorDto.builder()
                 .id(String.valueOf(comment.getUserId()))
                 .name(comment.getAuthorName())
@@ -396,6 +490,7 @@ public class IdeaService {
                 .author(author)
                 .content(comment.getContent())
                 .likes(comment.getLikesCount())
+                .hasLiked(hasLiked)
                 .createdAt(comment.getCreatedAt())
                 .build();
     }

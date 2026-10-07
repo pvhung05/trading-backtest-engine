@@ -78,6 +78,9 @@ public class UserProfileService {
         if (request.getBio() != null) {
             profile.setBio(request.getBio().trim());
         }
+        if (request.getBadge() != null) {
+            profile.setBadge(request.getBadge().trim());
+        }
 
         UserProfile saved = userProfileRepository.save(profile);
         return buildProfileResponse(saved);

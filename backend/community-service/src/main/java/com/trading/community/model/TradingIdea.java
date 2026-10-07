@@ -72,6 +72,8 @@ public class TradingIdea {
     @Column(columnDefinition = "LONGTEXT")
     private String content;
 
+    private Long backtestRunId; // Optional link to backtest run (UC-11 & UML 2.5)
+
     @Column(nullable = false)
     private Long userId;
 

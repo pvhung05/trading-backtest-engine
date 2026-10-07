@@ -48,6 +48,24 @@ public class IdeaController {
         return ResponseEntity.ok(ApiResponse.ok(ideas));
     }
 
+    @GetMapping("/bookmarked")
+    public ResponseEntity<ApiResponse<Page<TradingIdeaResponse>>> getBookmarkedIdeas(
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "12") int size,
+            @AuthenticationPrincipal UserPrincipal user) {
+        Page<TradingIdeaResponse> ideas = ideaService.getBookmarkedIdeas(page, size, user);
+        return ResponseEntity.ok(ApiResponse.ok(ideas));
+    }
+
+    @GetMapping("/symbol/{symbol}")
+    public ResponseEntity<ApiResponse<Page<TradingIdeaResponse>>> getIdeasBySymbol(
+            @PathVariable String symbol,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "12") int size) {
+        Page<TradingIdeaResponse> ideas = ideaService.getIdeasBySymbol(symbol, page, size);
+        return ResponseEntity.ok(ApiResponse.ok(ideas));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TradingIdeaResponse>> getIdeaById(@PathVariable Long id) {
         TradingIdeaResponse idea = ideaService.getIdeaById(id);
@@ -132,5 +150,22 @@ public class IdeaController {
         IdeaCommentResponse comment = ideaService.addComment(id, request, user);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Comment added successfully", comment));
+    }
+
+    @DeleteMapping("/{id}/comments/{commentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteComment(
+            @PathVariable Long id,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserPrincipal user) {
+        ideaService.deleteComment(id, commentId, user);
+        return ResponseEntity.ok(ApiResponse.ok("Comment deleted successfully", null));
+    }
+
+    @PostMapping("/comments/{commentId}/like")
+    public ResponseEntity<ApiResponse<IdeaCommentResponse>> toggleCommentLike(
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserPrincipal user) {
+        IdeaCommentResponse comment = ideaService.toggleCommentLike(commentId, user);
+        return ResponseEntity.ok(ApiResponse.ok(comment));
     }
 }

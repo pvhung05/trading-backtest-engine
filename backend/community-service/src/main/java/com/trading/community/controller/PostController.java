@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,6 +24,7 @@ import com.trading.community.dto.PostCommentRequest;
 import com.trading.community.dto.PostCommentResponse;
 import com.trading.community.dto.PostResponse;
 import com.trading.community.dto.ReactionRequest;
+import com.trading.community.dto.UpdatePostRequest;
 import com.trading.community.security.UserPrincipal;
 import com.trading.community.service.PostService;
 
@@ -77,6 +79,15 @@ public class PostController {
                 .body(ApiResponse.ok("Post created successfully", post));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<ApiResponse<PostResponse>> updatePost(
+            @PathVariable Long id,
+            @Valid @RequestBody UpdatePostRequest request,
+            @AuthenticationPrincipal UserPrincipal user) {
+        PostResponse post = postService.updatePost(id, request, user);
+        return ResponseEntity.ok(ApiResponse.ok("Post updated successfully", post));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deletePost(
             @PathVariable Long id,
@@ -108,6 +119,15 @@ public class PostController {
         PostCommentResponse comment = postService.addComment(id, request, user);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("Comment added successfully", comment));
+    }
+
+    @DeleteMapping("/{id}/comments/{commentId}")
+    public ResponseEntity<ApiResponse<Void>> deleteComment(
+            @PathVariable Long id,
+            @PathVariable Long commentId,
+            @AuthenticationPrincipal UserPrincipal user) {
+        postService.deleteComment(id, commentId, user);
+        return ResponseEntity.ok(ApiResponse.ok("Comment deleted successfully", null));
     }
 
     @PostMapping("/comments/{commentId}/like")

@@ -17,6 +17,10 @@ public interface TradingIdeaRepository extends JpaRepository<TradingIdea, Long>,
 
     Page<TradingIdea> findByAssetClassIgnoreCase(String assetClass, Pageable pageable);
 
+    Page<TradingIdea> findBySymbolIgnoreCase(String symbol, Pageable pageable);
+
+    Page<TradingIdea> findByIdIn(List<Long> ids, Pageable pageable);
+
     Page<TradingIdea> findByIsEditorsPickTrue(Pageable pageable);
 
     Page<TradingIdea> findByUserId(Long userId, Pageable pageable);

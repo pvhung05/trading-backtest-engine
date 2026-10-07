@@ -209,50 +209,39 @@ export function GroupsView() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 pb-12">
-      {/* Header bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-[#1e222d] p-5 rounded-2xl border border-gray-200/80 dark:border-[#2a2e39] shadow-xs">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Users className="size-6 text-blue-600" />
-            <span>Nhóm Giao Dịch & Cộng Đồng Chuyên Sâu</span>
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Gia nhập hoặc xây dựng các nhóm trao đổi tín hiệu, chia sẻ chiến thuật backtest thuật toán.
-          </p>
-        </div>
-
-        <button
-          onClick={() => setIsCreateOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-all cursor-pointer whitespace-nowrap"
-        >
-          <Plus className="size-4" />
-          <span>Tạo Nhóm Mới</span>
-        </button>
-      </div>
-
+    <div className="w-full space-y-6 pb-12">
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-        <div className="flex items-center gap-2 bg-gray-100 dark:bg-[#1e222d] p-1 rounded-xl w-full sm:w-auto">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex items-center gap-1.5 bg-gray-100 dark:bg-[#1e222d] p-1 rounded-xl">
+            <button
+              onClick={() => setFilterTab('all')}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                filterTab === 'all'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Tất cả các nhóm
+            </button>
+            <button
+              onClick={() => setFilterTab('my')}
+              className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                filterTab === 'my'
+                  ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              Nhóm của tôi ({groups.filter((g) => g.isMember).length})
+            </button>
+          </div>
+
           <button
-            onClick={() => setFilterTab('all')}
-            className={`flex-1 sm:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              filterTab === 'all'
-                ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-            }`}
+            onClick={() => setIsCreateOpen(true)}
+            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold shadow-xs transition-all cursor-pointer whitespace-nowrap"
           >
-            Tất cả các nhóm
-          </button>
-          <button
-            onClick={() => setFilterTab('my')}
-            className={`flex-1 sm:flex-none px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              filterTab === 'my'
-                ? 'bg-white dark:bg-gray-800 text-blue-600 dark:text-blue-400 shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900'
-            }`}
-          >
-            Nhóm của tôi ({groups.filter((g) => g.isMember).length})
+            <Plus className="size-4" />
+            <span>Tạo Nhóm Mới</span>
           </button>
         </div>
 
@@ -277,92 +266,125 @@ export function GroupsView() {
         </div>
       </div>
 
-      {/* Grid of Groups */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {displayedGroups.map((group) => (
-          <div
-            key={group.id}
-            className="bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl overflow-hidden shadow-xs flex flex-col group hover:shadow-md transition-all"
-          >
-            {/* Cover Image */}
-            <div className="h-36 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
-              <img
-                src={group.coverUrl}
-                alt={group.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-              <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold backdrop-blur-md bg-black/60 text-white">
-                {group.privacy === 'private' ? (
-                  <>
-                    <Lock className="size-3 text-amber-400" />
-                    <span>Kín</span>
-                  </>
-                ) : (
-                  <>
-                    <Globe className="size-3 text-emerald-400" />
-                    <span>Công khai</span>
-                  </>
-                )}
-              </div>
-              {group.role === 'ADMIN' && (
-                <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-600 text-white shadow-xs">
-                  <Shield className="size-3" />
-                  <span>ADMIN</span>
-                </div>
-              )}
+      {/* Grid or Empty State Container with fixed min-height */}
+      <div className="min-h-[460px]">
+        {displayedGroups.length === 0 ? (
+          <div className="py-20 flex flex-col items-center justify-center text-center bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl p-8 shadow-xs">
+            <div className="size-16 rounded-2xl bg-blue-50 dark:bg-blue-950/40 flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
+              <Users className="size-8" />
             </div>
-
-            {/* Content */}
-            <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-              <div>
-                <h3 className="font-bold text-base text-gray-900 dark:text-white line-clamp-1">
-                  {group.name}
-                </h3>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 leading-relaxed">
-                  {group.description || 'Chưa có mô tả cho nhóm giao dịch này.'}
-                </p>
-                <div className="flex items-center gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
-                  <Users className="size-3.5" />
-                  <span>{group.memberCount.toLocaleString('vi-VN')} thành viên</span>
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="pt-2 border-t border-gray-100 dark:border-[#2a2e39] flex items-center justify-between gap-2">
-                {group.role === 'ADMIN' && (
-                  <button
-                    onClick={() => openManageModal(group)}
-                    className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors cursor-pointer"
-                  >
-                    Quản lý nhóm
-                  </button>
-                )}
-
-                <div className="ml-auto">
-                  {group.isMember ? (
-                    <button
-                      onClick={() => handleLeaveGroup(group)}
-                      className="px-4 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                    >
-                      Đã tham gia (Rời)
-                    </button>
-                  ) : group.isPendingApproval ? (
-                    <span className="px-4 py-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-semibold">
-                      Chờ duyệt
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleJoinGroup(group)}
-                      className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
-                    >
-                      {group.privacy === 'private' ? 'Xin gia nhập' : 'Tham gia'}
-                    </button>
+            <h3 className="text-base font-bold text-gray-900 dark:text-white">
+              {filterTab === 'my' ? 'Bạn chưa tham gia nhóm nào' : 'Không tìm thấy nhóm phù hợp'}
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm">
+              {filterTab === 'my'
+                ? 'Hãy khám phá các cộng đồng trao đổi kiến thức tại tab "Tất cả các nhóm" hoặc tự tạo nhóm giao dịch của riêng bạn.'
+                : 'Hãy thử tìm kiếm với từ khóa khác hoặc tạo nhóm mới để cùng thảo luận.'}
+            </p>
+            {filterTab === 'my' ? (
+              <button
+                onClick={() => setFilterTab('all')}
+                className="mt-5 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-sm transition-all"
+              >
+                Khám phá tất cả các nhóm
+              </button>
+            ) : searchQuery ? (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="mt-5 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold cursor-pointer transition-all"
+              >
+                Xóa tìm kiếm
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {displayedGroups.map((group) => (
+              <div
+                key={group.id}
+                className="bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl overflow-hidden shadow-xs flex flex-col group hover:shadow-md transition-all"
+              >
+                {/* Cover Image */}
+                <div className="h-36 relative overflow-hidden bg-gray-100 dark:bg-gray-800">
+                  <img
+                    src={group.coverUrl}
+                    alt={group.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold backdrop-blur-md bg-black/60 text-white">
+                    {group.privacy === 'private' ? (
+                      <>
+                        <Lock className="size-3 text-amber-400" />
+                        <span>Kín</span>
+                      </>
+                    ) : (
+                      <>
+                        <Globe className="size-3 text-emerald-400" />
+                        <span>Công khai</span>
+                      </>
+                    )}
+                  </div>
+                  {group.role === 'ADMIN' && (
+                    <div className="absolute top-3 left-3 flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-600 text-white shadow-xs">
+                      <Shield className="size-3" />
+                      <span>ADMIN</span>
+                    </div>
                   )}
                 </div>
+
+                {/* Content */}
+                <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                  <div>
+                    <h3 className="font-bold text-base text-gray-900 dark:text-white line-clamp-1">
+                      {group.name}
+                    </h3>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2 leading-relaxed">
+                      {group.description || 'Chưa có mô tả cho nhóm giao dịch này.'}
+                    </p>
+                    <div className="flex items-center gap-2 mt-3 text-xs text-gray-500 dark:text-gray-400">
+                      <Users className="size-3.5" />
+                      <span>{group.memberCount.toLocaleString('vi-VN')} thành viên</span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="pt-2 border-t border-gray-100 dark:border-[#2a2e39] flex items-center justify-between gap-2">
+                    {group.role === 'ADMIN' && (
+                      <button
+                        onClick={() => openManageModal(group)}
+                        className="px-3 py-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-lg transition-colors cursor-pointer"
+                      >
+                        Quản lý nhóm
+                      </button>
+                    )}
+
+                    <div className="ml-auto">
+                      {group.isMember ? (
+                        <button
+                          onClick={() => handleLeaveGroup(group)}
+                          className="px-4 py-1.5 bg-gray-100 dark:bg-gray-800 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          Đã tham gia (Rời)
+                        </button>
+                      ) : group.isPendingApproval ? (
+                        <span className="px-4 py-1.5 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-xl text-xs font-semibold">
+                          Chờ duyệt
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleJoinGroup(group)}
+                          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          {group.privacy === 'private' ? 'Xin gia nhập' : 'Tham gia'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
 
       {/* Create Group Modal */}

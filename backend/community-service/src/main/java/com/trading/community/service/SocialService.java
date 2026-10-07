@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.trading.community.dto.FriendshipResponse;
 import com.trading.community.dto.UserDto;
+import com.trading.community.dto.UserProfileResponse;
 import com.trading.community.model.Follow;
 import com.trading.community.model.Friendship;
 import com.trading.community.model.UserProfile;
@@ -153,6 +154,26 @@ public class SocialService {
                 });
     }
 
+    @Transactional(readOnly = true)
+    public Page<FriendshipResponse> getSentPendingRequests(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return friendshipRepository.findBySenderIdAndStatus(userId, "PENDING", pageable)
+                .map(f -> {
+                    UserProfile receiver = userProfileRepository.findById(f.getReceiverId()).orElse(null);
+                    return buildFriendshipResponse(f, userId, receiver);
+                });
+    }
+
+    @Transactional
+    public void cancelFriendRequest(Long targetUserId, UserPrincipal currentUser) {
+        friendshipRepository.findBetweenUsers(currentUser.getId(), targetUserId)
+                .ifPresent(f -> {
+                    if (f.getSenderId().equals(currentUser.getId()) && "PENDING".equalsIgnoreCase(f.getStatus())) {
+                        friendshipRepository.delete(f);
+                    }
+                });
+    }
+
     @Transactional
     public boolean followUser(Long targetUserId, UserPrincipal currentUser) {
         if (targetUserId.equals(currentUser.getId())) {
@@ -211,6 +232,20 @@ public class SocialService {
             return true;
         }
         return false;
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UserProfileResponse> getFollowers(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return followRepository.findByFollowingId(userId, pageable)
+                .map(follow -> userProfileService.getProfileByUserId(follow.getFollowerId()));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UserProfileResponse> getFollowing(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return followRepository.findByFollowerId(userId, pageable)
+                .map(follow -> userProfileService.getProfileByUserId(follow.getFollowingId()));
     }
 
     private FriendshipResponse buildFriendshipResponse(Friendship f, Long currentUserId, UserProfile otherProfile) {

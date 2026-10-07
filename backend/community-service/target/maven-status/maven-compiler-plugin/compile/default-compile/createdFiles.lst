@@ -59,14 +59,12 @@ com\trading\community\dto\UpdateUserProfileRequest$UpdateUserProfileRequestBuild
 com\trading\community\dto\CreatePostRequest.class
 com\trading\community\controller\SocialController.class
 com\trading\community\dto\IdeaCommentResponse$IdeaCommentResponseBuilder.class
-com\trading\community\service\PostService.class
 com\trading\community\dto\UserDto.class
 com\trading\community\model\IdeaLike$IdeaLikeBuilder.class
 com\trading\community\dto\UserProfileResponse.class
 com\trading\community\dto\NotificationResponse$NotificationResponseBuilder.class
 com\trading\community\repository\CommunityGroupRepository.class
 com\trading\community\dto\ReactionRequest.class
-com\trading\community\controller\IdeaController.class
 com\trading\community\repository\IdeaBoostRepository.class
 com\trading\community\model\GroupMember.class
 com\trading\community\model\Notification$NotificationBuilder.class
@@ -88,10 +86,8 @@ com\trading\community\model\PostComment.class
 com\trading\community\model\IdeaBookmark$IdeaBookmarkBuilder.class
 com\trading\community\dto\CreateIdeaRequest.class
 com\trading\community\dto\UserDto$UserDtoBuilder.class
-com\trading\community\repository\PostCommentLikeRepository.class
 com\trading\community\security\UserPrincipal.class
 com\trading\community\security\JwtService.class
-com\trading\community\service\IdeaService.class
 com\trading\community\repository\PostReactionRepository.class
 com\trading\community\dto\PostResponse.class
 com\trading\community\model\PostComment$PostCommentBuilder.class

@@ -28,11 +28,20 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
+                        // Endpoints that require authentication even if GET
+                        .requestMatchers("/api/community/profile/me").authenticated()
+                        .requestMatchers("/api/community/ideas/bookmarked").authenticated()
+                        .requestMatchers("/api/community/groups/my").authenticated()
+                        .requestMatchers("/api/community/groups/*/members/pending").authenticated()
+                        .requestMatchers("/api/community/friends/**").authenticated()
+                        .requestMatchers("/api/community/notifications/**").authenticated()
                         // Public GET endpoints
                         .requestMatchers(HttpMethod.GET, "/api/community/ideas/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/community/posts/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/community/groups/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/community/profile/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/community/followers/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/community/following/**").permitAll()
                         .requestMatchers("/api/community/health").permitAll()
                         .requestMatchers("/error").permitAll()
                         // All other endpoints require authentication

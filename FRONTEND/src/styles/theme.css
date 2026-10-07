@@ -1,6 +1,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  scrollbar-gutter: stable;
   --font-size: 16px;
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
@@ -180,3 +181,29 @@
     line-height: 1.5;
   }
 }
+
+.reaction-btn {
+  transition: transform 150ms ease, background-color 150ms ease;
+}
+.reaction-btn:hover {
+  transform: scale(1.2);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes popIn {
+  0% { opacity: 0; transform: scale(0.8) translateY(4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.pop-in {
+  animation: popIn 180ms ease forwards;
+}
+

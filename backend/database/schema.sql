@@ -176,6 +176,7 @@ CREATE TABLE IF NOT EXISTS `community_trading_ideas` (
     `video_duration` VARCHAR(20) NULL,
     `summary` TEXT NULL,
     `content` LONGTEXT NULL,
+    `backtest_run_id` BIGINT NULL,
     `user_id` BIGINT NOT NULL,
     `author_name` VARCHAR(100) NOT NULL,
     `author_username` VARCHAR(100) NOT NULL,
@@ -214,6 +215,15 @@ CREATE TABLE IF NOT EXISTS `community_idea_comments` (
 
     INDEX `idx_idea_comments_idea_id` (`idea_id`),
     INDEX `idx_idea_comments_created_at` (`created_at` ASC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `community_idea_comment_likes` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `comment_id` BIGINT NOT NULL,
+    `user_id` BIGINT NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT `uk_idea_comment_user_like` UNIQUE (`comment_id`, `user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------------------

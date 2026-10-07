@@ -19,5 +19,6 @@ public class IdeaCommentResponse {
     private AuthorDto author;
     private String content;
     private Integer likes;
+    private Boolean hasLiked;
     private Instant createdAt;
 }

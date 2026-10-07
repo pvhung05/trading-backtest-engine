@@ -2,7 +2,7 @@
 	"info": {
 		"_postman_id": "trading-backtest-engine-collection",
 		"name": "Trading Backtest Engine - Microservices API",
-		"description": "Postman collection for Trading Backtest Engine routed through API Gateway (Port 8080).\nServices: Auth (8081), Realtime Market (8082), Backtest Engine (8083).",
+		"description": "Postman collection for Trading Backtest Engine routed through API Gateway (Port 8080).\nServices: Auth (8081), Realtime Market (8082), Backtest Engine (8083), Community (8084).",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"variable": [
@@ -506,6 +506,204 @@
 								"portfolio",
 								"simulate"
 							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "4. Community Service",
+			"item": [
+				{
+					"name": "Get Ideas Feed",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/community/ideas?category=popular&page=0&size=12",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "ideas"],
+							"query": [
+								{"key": "category", "value": "popular"},
+								{"key": "page", "value": "0"},
+								{"key": "size", "value": "12"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Publish Trading Idea",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"BTC/USDT Breakout Strategy\",\n  \"symbol\": \"BTCUSDT\",\n  \"assetClass\": \"crypto\",\n  \"timeframe\": \"1D\",\n  \"direction\": \"long\",\n  \"entryPrice\": 68500.00,\n  \"targetPrice\": 74000.00,\n  \"stopLossPrice\": 65500.00,\n  \"coverImage\": \"https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800\",\n  \"summary\": \"Bullish momentum building with rising volume.\",\n  \"content\": \"Full technical breakdown and multi-timeframe confirmation.\",\n  \"tags\": [\"BTC\", \"Crypto\", \"Breakout\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/community/ideas",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "ideas"]
+						}
+					}
+				},
+				{
+					"name": "Toggle Like Idea",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/community/ideas/1/like",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "ideas", "1", "like"]
+						}
+					}
+				},
+				{
+					"name": "Comment on Idea",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Great analysis! What is your view on the RSI divergence?\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/community/ideas/1/comments",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "ideas", "1", "comments"]
+						}
+					}
+				},
+				{
+					"name": "Get Social Posts Feed",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/community/posts?page=0&size=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "posts"],
+							"query": [
+								{"key": "page", "value": "0"},
+								{"key": "size", "value": "10"}
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Just completed a backtest with Sortino 2.8 on ETH/USDT!\",\n  \"privacy\": \"public\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/community/posts",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "posts"]
+						}
+					}
+				},
+				{
+					"name": "React to Post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"love\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/community/posts/1/react",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "posts", "1", "react"]
+						}
+					}
+				},
+				{
+					"name": "Get Groups",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/community/groups",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "groups"]
+						}
+					}
+				},
+				{
+					"name": "Join Group",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/community/groups/1/join",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "groups", "1", "join"]
+						}
+					}
+				},
+				{
+					"name": "Send Friend Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/community/friends/request/2",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "friends", "request", "2"]
+						}
+					}
+				},
+				{
+					"name": "Follow User",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/community/follow/2",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "follow", "2"]
+						}
+					}
+				},
+				{
+					"name": "Get Notifications",
+					"request": {
+						"method": "GET",
+						"header": [
+							{"key": "Authorization", "value": "Bearer {{auth_token}}"}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/community/notifications",
+							"host": ["{{base_url}}"],
+							"path": ["api", "community", "notifications"]
 						}
 					}
 				}

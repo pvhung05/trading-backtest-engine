@@ -23,4 +23,6 @@ public interface PostCommentRepository extends JpaRepository<PostComment, Long> 
     long countByPostId(Long postId);
 
     long countByParentId(Long parentId);
+
+    void deleteByParentId(Long parentId);
 }

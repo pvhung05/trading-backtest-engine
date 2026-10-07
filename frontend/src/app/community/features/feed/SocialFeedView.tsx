@@ -5,7 +5,7 @@ import Composer from '../composer/Composer';
 import PostCard from './PostCard';
 import { communityApi, type PostResponse } from '../../../services';
 import { useAuth } from '../../../context/AuthContext';
-import { Sparkles, MessageSquare, Flame, RefreshCw } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
 
 function mapBackendPost(p: PostResponse, currentUserId?: string): Post {
   const counts: Record<ReactionType, number> = {
@@ -55,7 +55,6 @@ export function SocialFeedView() {
   const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>(mockPosts);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'all' | 'popular'>('all');
 
   const appCurrentUser: User = {
     id: user?.id ? String(user.id) : defaultUser.id,
@@ -130,52 +129,12 @@ export function SocialFeedView() {
     }
   };
 
-  const displayedPosts = [...posts].sort((a, b) => {
-    if (activeTab === 'popular') {
-      return (b.reactions.total + b.commentCount) - (a.reactions.total + a.commentCount);
-    }
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+  const displayedPosts = [...posts].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 
   return (
     <div className="max-w-3xl mx-auto space-y-6 pb-12">
-      {/* Feed Sub-Header Filter Bar */}
-      <div className="flex items-center justify-between bg-white dark:bg-[#1e222d] px-4 py-3 rounded-2xl border border-gray-200/80 dark:border-[#2a2e39] shadow-xs">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'all'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            <Sparkles className="size-3.5" />
-            <span>Mới nhất</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('popular')}
-            className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-              activeTab === 'popular'
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            <Flame className="size-3.5" />
-            <span>Thảo luận sôi nổi</span>
-          </button>
-        </div>
-
-        <button
-          onClick={loadFeed}
-          disabled={loading}
-          className="p-2 text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-          title="Làm mới bảng tin"
-        >
-          <RefreshCw className={`size-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
-        </button>
-      </div>
-
       {/* Post Composer */}
       <Composer onPost={handlePost} currentUser={appCurrentUser} />
 

@@ -23,6 +23,12 @@ public interface GroupMemberRepository extends JpaRepository<GroupMember, Long> 
 
     Page<GroupMember> findByGroupIdAndStatus(Long groupId, String status, Pageable pageable);
 
+    List<GroupMember> findByGroupIdAndStatusOrderByJoinedAtAsc(Long groupId, String status);
+
+    List<GroupMember> findByGroupIdOrderByJoinedAtAsc(Long groupId);
+
+    boolean existsByGroupIdAndUserIdAndRole(Long groupId, Long userId, String role);
+
     List<GroupMember> findByUserIdAndStatus(Long userId, String status);
 
     long countByGroupIdAndStatus(Long groupId, String status);

@@ -16,6 +16,7 @@ D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trad
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\CreatePostRequest.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\FollowResponse.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\FriendshipResponse.java
+D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\GroupMemberResponse.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\GroupResponse.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\IdeaCommentRequest.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\IdeaCommentResponse.java
@@ -25,7 +26,9 @@ D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trad
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\PostResponse.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\ReactionRequest.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\TradingIdeaResponse.java
+D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\UpdateGroupRequest.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\UpdateIdeaRequest.java
+D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\UpdatePostRequest.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\UpdateUserProfileRequest.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\UserDto.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\dto\UserProfileResponse.java
@@ -36,6 +39,7 @@ D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trad
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\model\IdeaBookmark.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\model\IdeaBoost.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\model\IdeaComment.java
+D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\model\IdeaCommentLike.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\model\IdeaLike.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\model\Notification.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\model\Post.java
@@ -50,6 +54,7 @@ D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trad
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\repository\GroupMemberRepository.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\repository\IdeaBookmarkRepository.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\repository\IdeaBoostRepository.java
+D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\repository\IdeaCommentLikeRepository.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\repository\IdeaCommentRepository.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\repository\IdeaLikeRepository.java
 D:\KLTN\trading-backtest-engine\backend\community-service\src\main\java\com\trading\community\repository\NotificationRepository.java

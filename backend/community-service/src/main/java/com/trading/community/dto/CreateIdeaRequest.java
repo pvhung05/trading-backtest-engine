@@ -40,5 +40,7 @@ public class CreateIdeaRequest {
     private String summary;
     private String content;
 
+    private Long backtestRunId;
+
     private List<String> tags;
 }

@@ -147,29 +147,9 @@ export function FriendsView() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-[#1e222d] p-5 rounded-2xl border border-gray-200/80 dark:border-[#2a2e39] shadow-xs">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Users className="size-6 text-blue-600" />
-            <span>Mạng Lưới Bạn Bè & Kết Nối Giao Dịch</span>
-          </h2>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Mở rộng vòng kết nối trader, theo dõi chiến lược và thảo luận riêng tư cùng đồng đội.
-          </p>
-        </div>
-
-        <button
-          onClick={loadData}
-          className="p-2 text-gray-500 hover:text-blue-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer"
-          title="Làm mới"
-        >
-          <RefreshCw className={`size-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
-        </button>
-      </div>
-
       {/* Tabs */}
-      <div className="flex items-center gap-2 border-b border-gray-200 dark:border-[#2a2e39] pb-2 overflow-x-auto">
+      <div className="flex items-center justify-between gap-3 border-b border-gray-200 dark:border-[#2a2e39] pb-2">
+        <div className="flex items-center gap-2 overflow-x-auto py-1">
         <button
           onClick={() => setActiveTab('friends')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
@@ -206,16 +186,25 @@ export function FriendsView() {
           <span>Lời mời đã gửi ({sentRequests.length})</span>
         </button>
 
+          <button
+            onClick={() => setActiveTab('add')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'add'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Search className="size-4" />
+            <span>Kết bạn mới</span>
+          </button>
+        </div>
+
         <button
-          onClick={() => setActiveTab('add')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
-            activeTab === 'add'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
+          onClick={loadData}
+          className="p-2 text-gray-500 hover:text-blue-600 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer shrink-0"
+          title="Làm mới danh sách bạn bè"
         >
-          <Search className="size-4" />
-          <span>Kết bạn mới</span>
+          <RefreshCw className={`size-4 ${loading ? 'animate-spin text-blue-600' : ''}`} />
         </button>
       </div>
 

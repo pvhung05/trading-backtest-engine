@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.trading.community.dto.ApiResponse;
 import com.trading.community.dto.FriendshipResponse;
+import com.trading.community.dto.UserProfileResponse;
 import com.trading.community.security.UserPrincipal;
 import com.trading.community.service.SocialService;
 
@@ -32,6 +33,14 @@ public class SocialController {
             @AuthenticationPrincipal UserPrincipal user) {
         FriendshipResponse response = socialService.sendFriendRequest(targetUserId, user);
         return ResponseEntity.ok(ApiResponse.ok("Friend request sent", response));
+    }
+
+    @DeleteMapping("/friends/request/{targetUserId}")
+    public ResponseEntity<ApiResponse<Void>> cancelFriendRequest(
+            @PathVariable Long targetUserId,
+            @AuthenticationPrincipal UserPrincipal user) {
+        socialService.cancelFriendRequest(targetUserId, user);
+        return ResponseEntity.ok(ApiResponse.ok("Friend request cancelled", null));
     }
 
     @PostMapping("/friends/{friendshipId}/respond")
@@ -70,6 +79,15 @@ public class SocialController {
         return ResponseEntity.ok(ApiResponse.ok(pending));
     }
 
+    @GetMapping("/friends/sent")
+    public ResponseEntity<ApiResponse<Page<FriendshipResponse>>> getSentPendingRequests(
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size,
+            @AuthenticationPrincipal UserPrincipal user) {
+        Page<FriendshipResponse> sent = socialService.getSentPendingRequests(user.getId(), page, size);
+        return ResponseEntity.ok(ApiResponse.ok(sent));
+    }
+
     @PostMapping("/follow/{targetUserId}")
     public ResponseEntity<ApiResponse<Boolean>> followUser(
             @PathVariable Long targetUserId,
@@ -84,5 +102,23 @@ public class SocialController {
             @AuthenticationPrincipal UserPrincipal user) {
         boolean unfollowed = socialService.unfollowUser(targetUserId, user);
         return ResponseEntity.ok(ApiResponse.ok("Unfollowed successfully", unfollowed));
+    }
+
+    @GetMapping("/followers/{userId}")
+    public ResponseEntity<ApiResponse<Page<UserProfileResponse>>> getFollowers(
+            @PathVariable Long userId,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
+        Page<UserProfileResponse> followers = socialService.getFollowers(userId, page, size);
+        return ResponseEntity.ok(ApiResponse.ok(followers));
+    }
+
+    @GetMapping("/following/{userId}")
+    public ResponseEntity<ApiResponse<Page<UserProfileResponse>>> getFollowing(
+            @PathVariable Long userId,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "20") int size) {
+        Page<UserProfileResponse> following = socialService.getFollowing(userId, page, size);
+        return ResponseEntity.ok(ApiResponse.ok(following));
     }
 }

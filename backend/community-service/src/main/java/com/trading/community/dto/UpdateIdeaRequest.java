@@ -25,5 +25,6 @@ public class UpdateIdeaRequest {
     private String coverImage;
     private String summary;
     private String content;
+    private Long backtestRunId;
     private List<String> tags;
 }
