@@ -3,3 +3,4 @@ export * from './authApi';
 export * from './backtestApi';
 export * from './marketApi';
 export * from './websocketService';
+export * from './communityApi';
