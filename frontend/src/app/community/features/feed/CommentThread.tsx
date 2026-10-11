@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import type { Comment, User } from '../../types';
 import { currentUser as defaultUser, mockComments } from '../../data/mock';
 import Avatar from '../../components/Avatar';
@@ -42,10 +43,17 @@ function CommentItem({ comment, depth = 0, currentUser = defaultUser, onReply, o
 
   return (
     <div className={`flex gap-3 ${depth > 0 ? 'ml-10' : ''}`}>
-      <Avatar user={comment.author} size="sm" />
+      <Link to={`/community/profile/${comment.author.id}`} className="hover:opacity-85 transition-opacity shrink-0">
+        <Avatar user={comment.author} size="sm" />
+      </Link>
       <div className="flex-1 min-w-0">
         <div className="bg-slate-50 dark:bg-gray-700/50 rounded-[12px] px-3 py-2.5">
-          <span className="font-semibold text-sm text-slate-800 dark:text-gray-100">{comment.author.name}</span>
+          <Link
+            to={`/community/profile/${comment.author.id}`}
+            className="font-semibold text-sm text-slate-800 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400 hover:underline block truncate max-w-full"
+          >
+            {comment.author.name}
+          </Link>
           <p className="text-sm text-slate-700 dark:text-gray-300 mt-0.5 leading-relaxed">{comment.content}</p>
         </div>
         <div className="flex items-center gap-4 mt-1 px-1">
@@ -113,8 +121,9 @@ export default function CommentThread({ postId, commentCount, currentUser = defa
       communityApi
         .getPostComments(numId)
         .then((res) => {
-          if (mounted && res?.content && res.content.length > 0) {
-            const mapped = res.content.map(mapBackendComment);
+          const rawList = Array.isArray(res) ? res : (res as any)?.content || [];
+          if (mounted && rawList.length > 0) {
+            const mapped = rawList.map(mapBackendComment);
             setComments(mapped);
           } else if (mounted) {
             const local = mockComments.filter((c) => c.postId === postId);
@@ -137,22 +146,30 @@ export default function CommentThread({ postId, commentCount, currentUser = defa
   }, [postId]);
 
   function mapBackendComment(c: PostCommentResponse): Comment {
+    const authorData = (c as any).author || {
+      id: String((c as any).userId || '1'),
+      name: (c as any).userName || 'Trader',
+      avatarUrl: (c as any).userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop',
+    };
+
+    const likesNum = (c as any).likes ?? (c as any).likesCount ?? 0;
+
     return {
       id: String(c.id),
       postId,
       author: {
-        id: String(c.userId),
-        name: c.userName || 'Trader',
-        avatarUrl: c.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop',
+        id: String(authorData.id),
+        name: authorData.name || 'Trader',
+        avatarUrl: authorData.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop',
       },
       content: c.content,
       reactions: {
-        counts: { like: c.likesCount || 0 },
-        myReaction: c.hasLiked ? 'like' : null,
-        total: c.likesCount || 0,
+        counts: { like: likesNum },
+        myReaction: (c as any).hasLiked ? 'like' : null,
+        total: likesNum,
       },
-      replyCount: 0,
-      createdAt: c.createdAt || new Date().toISOString(),
+      replyCount: (c as any).replyCount || 0,
+      createdAt: c.createdAt ? String(c.createdAt) : new Date().toISOString(),
       parentId: c.parentId ? String(c.parentId) : undefined,
     };
   }

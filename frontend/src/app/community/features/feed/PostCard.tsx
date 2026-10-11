@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { Post, ReactionType, User } from '../../types';
 import Avatar from '../../components/Avatar';
 import { DotsIcon, MessageIcon, ShareIcon, GlobeIcon, UsersIcon, LockIcon } from '../../components/Icons';
+import { Trash2 } from 'lucide-react';
 import ReactionPicker, { reactionConfig } from './ReactionPicker';
 import CommentThread from './CommentThread';
 
@@ -26,6 +28,7 @@ interface PostCardProps {
   onReact: (postId: string, type: ReactionType) => void;
   onComment?: (postId: string) => void;
   onShare?: (postId: string) => void;
+  onDelete?: (postId: string) => void;
 }
 
 function MediaGrid({ media }: { media: Post['media'] }) {
@@ -67,11 +70,14 @@ function ReactionBar({ reactions }: { reactions: Post['reactions'] }) {
   );
 }
 
-export default function PostCard({ post, currentUserId = 'u0', currentUser, onReact, onComment, onShare }: PostCardProps) {
+export default function PostCard({ post, currentUserId = 'u0', currentUser, onReact, onComment, onShare, onDelete }: PostCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [localReaction, setLocalReaction] = useState<ReactionType | null>(post.reactions.myReaction);
   const [localTotal, setLocalTotal] = useState(post.reactions.total);
+
+  const isOwner = String(currentUserId) === String(post.author.id);
 
   const MAX_LEN = 280;
   const shouldTruncate = post.content.length > MAX_LEN && !expanded;
@@ -90,20 +96,66 @@ export default function PostCard({ post, currentUserId = 'u0', currentUser, onRe
   }
 
   return (
-    <article className="bg-white dark:bg-gray-800 rounded-[16px] shadow-sm border border-slate-100 dark:border-gray-700/70 p-4 space-y-1">
+    <article className="bg-white dark:bg-gray-800 rounded-[16px] shadow-sm border border-slate-100 dark:border-gray-700/70 p-4 space-y-1 relative">
       <div className="flex items-start gap-3">
-        <Avatar user={post.author} size="md" showOnline />
+        <Link to={`/community/profile/${post.author.id}`} className="hover:opacity-85 transition-opacity shrink-0">
+          <Avatar user={post.author} size="md" showOnline />
+        </Link>
         <div className="flex-1 min-w-0">
-          <span className="font-semibold text-slate-800 dark:text-gray-100 text-sm">{post.author.name}</span>
+          <Link
+            to={`/community/profile/${post.author.id}`}
+            className="font-semibold text-slate-800 dark:text-gray-100 text-sm hover:text-blue-600 dark:hover:text-blue-400 hover:underline inline-block truncate max-w-full"
+          >
+            {post.author.name}
+          </Link>
           <div className="flex items-center gap-1 text-xs text-slate-400 dark:text-gray-500 mt-0.5">
             <span>{timeAgo(post.createdAt)}</span>
             <span>·</span>
             <PrivacyIcon privacy={post.privacy} />
           </div>
         </div>
-        <button className="text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 p-1.5 rounded-[8px] hover:bg-slate-50 dark:hover:bg-gray-700/60 cursor-pointer" aria-label="Tùy chọn">
-          <DotsIcon size={18} />
-        </button>
+
+        {/* Options Button & Menu */}
+        <div className="relative">
+          <button
+            onClick={() => setShowMenu(!showMenu)}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-gray-200 p-1.5 rounded-[8px] hover:bg-slate-50 dark:hover:bg-gray-700/60 cursor-pointer transition-colors"
+            aria-label="Tùy chọn"
+          >
+            <DotsIcon size={18} />
+          </button>
+
+          {showMenu && (
+            <div className="absolute right-0 top-full mt-1 w-40 bg-white dark:bg-[#1a2130] rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1 z-30 animate-in fade-in zoom-in-95 duration-150">
+              {isOwner && onDelete && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowMenu(false);
+                    if (window.confirm('Bạn có chắc chắn muốn xóa bài viết này không?')) {
+                      onDelete(post.id);
+                    }
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer text-left"
+                >
+                  <Trash2 className="size-3.5" />
+                  <span>Xóa bài viết</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowMenu(false);
+                  onShare?.(post.id);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer text-left"
+              >
+                <ShareIcon size={14} />
+                <span>Chia sẻ</span>
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="text-slate-700 dark:text-gray-200 text-sm leading-relaxed whitespace-pre-line pt-1">

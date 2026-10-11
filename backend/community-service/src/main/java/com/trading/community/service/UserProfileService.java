@@ -50,10 +50,10 @@ public class UserProfileService {
         });
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public UserProfileResponse getProfileByUserId(Long targetUserId) {
         UserProfile profile = userProfileRepository.findById(targetUserId)
-                .orElseThrow(() -> new IllegalArgumentException("User profile not found: " + targetUserId));
+                .orElseGet(() -> getOrCreateProfile(targetUserId, "user" + targetUserId, "Trader #" + targetUserId, null));
         return buildProfileResponse(profile);
     }
 
@@ -114,6 +114,10 @@ public class UserProfileService {
         String friendStatus = "not_friend";
         boolean isFollowing = false;
 
+        // Calculate real counts directly from follow repository
+        long realFollowers = followRepository.countByFollowingId(profile.getUserId());
+        long realFollowing = followRepository.countByFollowerId(profile.getUserId());
+
         if (currentUserId != null && !currentUserId.equals(profile.getUserId())) {
             isFollowing = followRepository.existsByFollowerIdAndFollowingId(currentUserId, profile.getUserId());
             var friendshipOpt = friendshipRepository.findBetweenUsers(currentUserId, profile.getUserId());
@@ -135,8 +139,8 @@ public class UserProfileService {
                 .bio(profile.getBio())
                 .badge(profile.getBadge())
                 .reputation(profile.getReputation())
-                .followersCount(profile.getFollowersCount())
-                .followingCount(profile.getFollowingCount())
+                .followersCount((int) realFollowers)
+                .followingCount((int) realFollowing)
                 .ideasCount(profile.getIdeasCount())
                 .isOnline(profile.getIsOnline())
                 .isFriend("friends".equals(friendStatus))

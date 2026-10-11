@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { X, Heart, Rocket, Share2, Send, TrendingUp, TrendingDown, Minus, ShieldCheck, CheckCircle } from 'lucide-react';
 import type { TradingIdea, IdeaComment } from '../types';
 import { useAuth } from '../../context/AuthContext';
@@ -153,16 +154,22 @@ export function IdeaDetailModal({
             {/* Author Sidebar */}
             <div className="space-y-4">
               <div className="p-4 rounded-2xl bg-gray-50 dark:bg-[#131722] border border-gray-200/60 dark:border-[#2a2e39] space-y-4">
-                <div className="flex items-center gap-3">
+                <Link
+                  to={`/community/profile/${idea.author.id}`}
+                  onClick={onClose}
+                  className="flex items-center gap-3 group hover:opacity-85 transition-opacity"
+                >
                   {idea.author.avatarUrl ? (
-                    <img src={idea.author.avatarUrl} alt="" className="size-12 rounded-full object-cover" />
+                    <img src={idea.author.avatarUrl} alt="" className="size-12 rounded-full object-cover shrink-0" />
                   ) : (
-                    <div className="size-12 rounded-full bg-blue-600 text-white font-bold text-base flex items-center justify-center">
+                    <div className="size-12 rounded-full bg-blue-600 text-white font-bold text-base flex items-center justify-center shrink-0">
                       {idea.author.name.charAt(0)}
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <h4 className="font-bold text-sm text-gray-900 dark:text-white truncate">{idea.author.name}</h4>
+                    <h4 className="font-bold text-sm text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 group-hover:underline truncate">
+                      {idea.author.name}
+                    </h4>
                     <p className="text-xs text-gray-400">@{idea.author.username}</p>
                     {idea.author.badge && (
                       <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300">
@@ -170,7 +177,7 @@ export function IdeaDetailModal({
                       </span>
                     )}
                   </div>
-                </div>
+                </Link>
 
                 <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-200/60 dark:border-[#2a2e39] text-center text-xs">
                   <div>
@@ -261,7 +268,13 @@ export function IdeaDetailModal({
                 <div key={c.id} className="p-3.5 rounded-xl bg-gray-50 dark:bg-[#131722] border border-gray-100 dark:border-[#2a2e39] space-y-1.5">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-xs text-gray-900 dark:text-white">{c.author.name}</span>
+                      <Link
+                        to={`/community/profile/${c.author.id}`}
+                        onClick={onClose}
+                        className="font-bold text-xs text-gray-900 dark:text-white hover:text-blue-600 hover:underline"
+                      >
+                        {c.author.name}
+                      </Link>
                       {c.author.badge && (
                         <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-100 dark:bg-blue-900/60 text-blue-600 dark:text-blue-300">
                           {c.author.badge}

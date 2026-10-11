@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import type { Group } from '../../types';
 import { mockGroups } from '../../data/mock';
 import { communityApi, type GroupResponse, type GroupMemberResponse } from '../../../services';
@@ -533,17 +534,21 @@ export function GroupsView() {
                       key={m.userId}
                       className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700"
                     >
-                      <div className="flex items-center gap-3">
+                      <Link
+                        to={`/community/profile/${m.userId}`}
+                        onClick={() => setSelectedGroupForMembers(null)}
+                        className="flex items-center gap-3 hover:opacity-85 transition-opacity"
+                      >
                         <img
                           src={m.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop'}
                           alt={m.userName}
                           className="size-9 rounded-full object-cover"
                         />
                         <div>
-                          <p className="text-xs font-bold text-gray-900 dark:text-white">{m.userName}</p>
-                          <p className="text-[10px] text-gray-500">Yêu cầu gia nhập</p>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white hover:text-blue-600 hover:underline">{m.userName}</p>
+                          <p className="text-[10px] text-gray-500">Yêu cầu gia nhập · Xem hồ sơ</p>
                         </div>
-                      </div>
+                      </Link>
                       <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => handleRespondPending(m.userId, 'APPROVE')}
@@ -571,7 +576,11 @@ export function GroupsView() {
                     key={m.userId}
                     className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-800/60 border border-gray-100 dark:border-gray-700"
                   >
-                    <div className="flex items-center gap-3">
+                    <Link
+                      to={`/community/profile/${m.userId}`}
+                      onClick={() => setSelectedGroupForMembers(null)}
+                      className="flex items-center gap-3 hover:opacity-85 transition-opacity"
+                    >
                       <img
                         src={m.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop'}
                         alt={m.userName}
@@ -579,14 +588,14 @@ export function GroupsView() {
                       />
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <p className="text-xs font-bold text-gray-900 dark:text-white">{m.userName}</p>
+                          <p className="text-xs font-bold text-gray-900 dark:text-white hover:text-blue-600 hover:underline">{m.userName}</p>
                           {m.role === 'ADMIN' && (
                             <span className="text-[10px] px-1.5 py-0.2 bg-blue-100 text-blue-700 rounded font-semibold">Admin</span>
                           )}
                         </div>
                         <p className="text-[10px] text-gray-500">{m.userBadge || 'TRADER'}</p>
                       </div>
-                    </div>
+                    </Link>
                     {m.role !== 'ADMIN' && (
                       <button
                         onClick={() => handleRemoveMember(m.userId)}

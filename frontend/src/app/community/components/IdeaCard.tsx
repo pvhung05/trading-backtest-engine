@@ -1,15 +1,17 @@
+import { Link } from 'react-router-dom';
 import type { TradingIdea } from '../types';
-import { Heart, MessageSquare, Rocket, Play, TrendingUp, TrendingDown, Minus, CheckCircle } from 'lucide-react';
+import { Heart, MessageSquare, Rocket, Play, TrendingUp, TrendingDown, Minus, CheckCircle, Trash2 } from 'lucide-react';
 
 interface IdeaCardProps {
   idea: TradingIdea;
   onClick?: (idea: TradingIdea) => void;
   onLike?: (id: string, e: React.MouseEvent) => void;
   onBoost?: (id: string, e: React.MouseEvent) => void;
+  onDelete?: (id: string, e: React.MouseEvent) => void;
   isLiked?: boolean;
 }
 
-export function IdeaCard({ idea, onClick, onLike, onBoost, isLiked }: IdeaCardProps) {
+export function IdeaCard({ idea, onClick, onLike, onBoost, onDelete, isLiked }: IdeaCardProps) {
   const getDirectionBadge = () => {
     switch (idea.direction) {
       case 'long':
@@ -132,7 +134,11 @@ export function IdeaCard({ idea, onClick, onLike, onBoost, isLiked }: IdeaCardPr
         {/* Author & Stats Footer */}
         <div className="pt-2 border-t border-gray-100 dark:border-[#2a2e39] flex items-center justify-between">
           {/* Author */}
-          <div className="flex items-center gap-2 min-w-0">
+          <Link
+            to={`/community/profile/${idea.author.id}`}
+            onClick={(e) => e.stopPropagation()}
+            className="flex items-center gap-2 min-w-0 group/author hover:opacity-85 transition-opacity"
+          >
             {idea.author.avatarUrl ? (
               <img
                 src={idea.author.avatarUrl}
@@ -145,7 +151,7 @@ export function IdeaCard({ idea, onClick, onLike, onBoost, isLiked }: IdeaCardPr
               </div>
             )}
             <div className="min-w-0 flex items-center gap-1.5 truncate">
-              <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">
+              <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 group-hover/author:text-blue-600 dark:group-hover/author:text-blue-400 group-hover/author:underline truncate">
                 {idea.author.name}
               </span>
               {idea.author.badge && (
@@ -154,7 +160,7 @@ export function IdeaCard({ idea, onClick, onLike, onBoost, isLiked }: IdeaCardPr
                 </span>
               )}
             </div>
-          </div>
+          </Link>
 
           {/* Social Stats */}
           <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400 shrink-0 select-none">
@@ -173,7 +179,7 @@ export function IdeaCard({ idea, onClick, onLike, onBoost, isLiked }: IdeaCardPr
 
             <span className="flex items-center gap-1">
               <MessageSquare className="size-3.5" />
-              <span>{idea.comments.length}</span>
+              <span>{Array.isArray(idea.comments) ? idea.comments.length : Number(idea.comments) || 0}</span>
             </span>
 
             <button
@@ -187,6 +193,21 @@ export function IdeaCard({ idea, onClick, onLike, onBoost, isLiked }: IdeaCardPr
               <Rocket className="size-3.5 text-amber-500" />
               <span>{idea.boosts}</span>
             </button>
+
+            {onDelete && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (window.confirm('Bạn có chắc chắn muốn xóa ý tưởng giao dịch này không?')) {
+                    onDelete(idea.id, e);
+                  }
+                }}
+                className="flex items-center gap-1 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                title="Xóa ý tưởng"
+              >
+                <Trash2 className="size-3.5 text-gray-400 hover:text-rose-600" />
+              </button>
+            )}
           </div>
         </div>
       </div>

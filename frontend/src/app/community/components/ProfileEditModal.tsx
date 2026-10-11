@@ -27,7 +27,7 @@ export function ProfileEditModal({ isOpen, onClose, onProfileUpdated }: ProfileE
         .getMyProfile()
         .then((res) => {
           if (res) {
-            setDisplayName(res.displayName || user?.name || '');
+            setDisplayName((res as any).name || res.displayName || user?.name || '');
             setBio(res.bio || '');
             setAvatarUrl(res.avatarUrl || user?.avatarUrl || '');
             setBadge(res.badge || 'TRADER');
