@@ -248,6 +248,19 @@ public class SocialService {
                 .map(follow -> userProfileService.getProfileByUserId(follow.getFollowingId()));
     }
 
+    @Transactional(readOnly = true)
+    public FriendshipResponse getFriendshipStatus(Long targetUserId, UserPrincipal currentUser) {
+        UserProfile otherProfile = userProfileRepository.findById(targetUserId).orElse(null);
+        Optional<Friendship> opt = friendshipRepository.findBetweenUsers(currentUser.getId(), targetUserId);
+        if (opt.isEmpty()) {
+            return FriendshipResponse.builder()
+                    .user(otherProfile != null ? userProfileService.toUserDto(otherProfile) : null)
+                    .status("not_friend")
+                    .build();
+        }
+        return buildFriendshipResponse(opt.get(), currentUser.getId(), otherProfile);
+    }
+
     private FriendshipResponse buildFriendshipResponse(Friendship f, Long currentUserId, UserProfile otherProfile) {
         String status = "not_friend";
         if ("ACCEPTED".equalsIgnoreCase(f.getStatus())) {

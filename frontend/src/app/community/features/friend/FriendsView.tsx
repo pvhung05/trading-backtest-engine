@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import type { User, FriendRequest } from '../../types';
 import { users as mockUserList, mockFriendRequests, currentUser as defaultUser } from '../../data/mock';
 import { communityApi, type FriendResponse } from '../../../services';
@@ -13,13 +14,14 @@ import {
   Search,
   UserMinus,
   RefreshCw,
+  ExternalLink,
 } from 'lucide-react';
 
 export function FriendsView() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'friends' | 'received' | 'sent' | 'add'>('friends');
-  const [friends, setFriends] = useState<User[]>(mockUserList.slice(0, 3));
-  const [receivedRequests, setReceivedRequests] = useState<FriendRequest[]>(mockFriendRequests);
+  const [friends, setFriends] = useState<User[]>([]);
+  const [receivedRequests, setReceivedRequests] = useState<FriendRequest[]>([]);
   const [sentRequests, setSentRequests] = useState<FriendResponse[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -31,42 +33,57 @@ export function FriendsView() {
     setLoading(true);
     try {
       const [friendsRes, receivedRes, sentRes] = await Promise.all([
-        communityApi.getFriends().catch(() => []),
-        communityApi.getFriendRequests().catch(() => []),
-        communityApi.getSentFriendRequests().catch(() => []),
+        communityApi.getFriends().catch(() => null),
+        communityApi.getPendingFriendRequests().catch(() => null),
+        communityApi.getSentFriendRequests().catch(() => null),
       ]);
 
-      if (friendsRes && friendsRes.length > 0) {
-        setFriends(
-          friendsRes.map((f) => ({
-            id: String(f.id),
-            name: f.friendName || f.friendUsername || 'Trader',
-            avatarUrl: f.friendAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop',
-            email: f.friendUsername ? `@${f.friendUsername}` : undefined,
-            isOnline: true,
-          }))
-        );
-      }
+      const extractList = (res: any) => {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (Array.isArray(res.content)) return res.content;
+        return [];
+      };
 
-      if (receivedRes && receivedRes.length > 0) {
-        setReceivedRequests(
-          receivedRes.map((r) => ({
-            id: String(r.id),
-            from: {
-              id: String(r.friendId),
-              name: r.friendName || r.friendUsername || 'Trader',
-              avatarUrl: r.friendAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop',
-            },
-            to: defaultUser,
-            status: 'pending',
-            createdAt: r.createdAt || new Date().toISOString(),
-          }))
-        );
-      }
+      const friendsList = extractList(friendsRes);
+      const receivedList = extractList(receivedRes);
+      const sentList = extractList(sentRes);
 
-      if (sentRes && sentRes.length > 0) {
-        setSentRequests(sentRes);
-      }
+      setFriends(
+        friendsList.map((f: any) => ({
+          id: String(f.user?.id || f.id),
+          name: f.user?.name || f.friendName || f.friendUsername || `User #${f.user?.id || f.id}`,
+          avatarUrl: f.user?.avatarUrl || f.friendAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop',
+          email: f.user?.username ? `@${f.user.username}` : (f.friendUsername ? `@${f.friendUsername}` : undefined),
+          isOnline: true,
+        }))
+      );
+
+      setReceivedRequests(
+        receivedList.map((r: any) => ({
+          id: String(r.id), // Friendship ID
+          from: {
+            id: String(r.user?.id || r.friendId || '1'),
+            name: r.user?.name || r.friendName || r.friendUsername || `User #${r.user?.id || '1'}`,
+            avatarUrl: r.user?.avatarUrl || r.friendAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop',
+          },
+          to: defaultUser,
+          status: 'pending',
+          createdAt: r.createdAt ? String(r.createdAt) : new Date().toISOString(),
+        }))
+      );
+
+      setSentRequests(
+        sentList.map((s: any) => ({
+          id: String(s.id),
+          friendId: Number(s.user?.id || s.friendId),
+          friendName: s.user?.name || s.friendName || `User #${s.user?.id}`,
+          friendUsername: s.user?.username || s.friendUsername,
+          friendAvatar: s.user?.avatarUrl || s.friendAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&h=80&fit=crop',
+          status: 'PENDING',
+          createdAt: s.createdAt ? String(s.createdAt) : new Date().toISOString(),
+        }))
+      );
     } catch (err) {
       console.warn('Friends data API error:', err);
     } finally {
@@ -78,53 +95,53 @@ export function FriendsView() {
     loadData();
   }, []);
 
-  const handleAcceptRequest = async (reqId: string, senderId: string) => {
-    const numId = Number(senderId);
-    if (!isNaN(numId)) {
+  const handleAcceptRequest = async (reqId: string) => {
+    const friendshipId = Number(reqId);
+    if (!isNaN(friendshipId)) {
       try {
-        await communityApi.respondFriendRequest(numId, 'ACCEPT');
+        await communityApi.respondFriendRequest(friendshipId, true);
+        const accepted = receivedRequests.find((r) => r.id === reqId);
+        if (accepted) {
+          setFriends((prev) => [accepted.from, ...prev]);
+        }
+        setReceivedRequests((prev) => prev.filter((r) => r.id !== reqId));
       } catch (err) {
         console.warn('Accept friend error:', err);
       }
     }
-    const accepted = receivedRequests.find((r) => r.id === reqId);
-    if (accepted) {
-      setFriends((prev) => [accepted.from, ...prev]);
-    }
-    setReceivedRequests((prev) => prev.filter((r) => r.id !== reqId));
   };
 
-  const handleDeclineRequest = async (reqId: string, senderId: string) => {
-    const numId = Number(senderId);
-    if (!isNaN(numId)) {
+  const handleDeclineRequest = async (reqId: string) => {
+    const friendshipId = Number(reqId);
+    if (!isNaN(friendshipId)) {
       try {
-        await communityApi.respondFriendRequest(numId, 'DECLINE');
+        await communityApi.respondFriendRequest(friendshipId, false);
+        setReceivedRequests((prev) => prev.filter((r) => r.id !== reqId));
       } catch (err) {
         console.warn('Decline friend error:', err);
       }
     }
-    setReceivedRequests((prev) => prev.filter((r) => r.id !== reqId));
   };
 
-  const handleCancelSentRequest = async (receiverId: number) => {
+  const handleCancelSentRequest = async (targetUserId: number) => {
     try {
-      await communityApi.cancelFriendRequest(receiverId);
-      setSentRequests((prev) => prev.filter((r) => r.friendId !== receiverId));
+      await communityApi.cancelFriendRequest(targetUserId);
+      setSentRequests((prev) => prev.filter((r) => r.friendId !== targetUserId));
     } catch (err) {
       console.warn('Cancel sent request failed:', err);
     }
   };
 
-  const handleUnfriend = async (friendId: string) => {
-    const numId = Number(friendId);
+  const handleUnfriend = async (friendUserId: string) => {
+    const numId = Number(friendUserId);
     if (!isNaN(numId)) {
       try {
-        await communityApi.unfriend(numId);
+        await communityApi.removeFriend(numId);
+        setFriends((prev) => prev.filter((f) => f.id !== friendUserId));
       } catch (err) {
         console.warn('Unfriend error:', err);
       }
     }
-    setFriends((prev) => prev.filter((f) => f.id !== friendId));
   };
 
   const handleSendFriendRequest = async (e: React.FormEvent) => {
@@ -141,7 +158,7 @@ export function FriendsView() {
       setTargetUserIdInput('');
       loadData();
     } catch (err: any) {
-      setFeedbackMsg({ text: 'Không thể gửi lời mời hoặc người dùng không tồn tại.', type: 'error' });
+      setFeedbackMsg({ text: 'Không thể gửi lời mời hoặc bạn đã gửi/đã là bạn bè với người dùng này.', type: 'error' });
     }
   };
 
@@ -150,41 +167,41 @@ export function FriendsView() {
       {/* Tabs */}
       <div className="flex items-center justify-between gap-3 border-b border-gray-200 dark:border-[#2a2e39] pb-2">
         <div className="flex items-center gap-2 overflow-x-auto py-1">
-        <button
-          onClick={() => setActiveTab('friends')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
-            activeTab === 'friends'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-        >
-          <UserCheck className="size-4" />
-          <span>Bạn bè ({friends.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('friends')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'friends'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <UserCheck className="size-4" />
+            <span>Bạn bè ({friends.length})</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('received')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
-            activeTab === 'received'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-        >
-          <UserPlus className="size-4" />
-          <span>Lời mời đã nhận ({receivedRequests.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('received')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'received'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <UserPlus className="size-4" />
+            <span>Lời mời đã nhận ({receivedRequests.length})</span>
+          </button>
 
-        <button
-          onClick={() => setActiveTab('sent')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
-            activeTab === 'sent'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-          }`}
-        >
-          <Send className="size-4" />
-          <span>Lời mời đã gửi ({sentRequests.length})</span>
-        </button>
+          <button
+            onClick={() => setActiveTab('sent')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap cursor-pointer transition-all ${
+              activeTab === 'sent'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+            }`}
+          >
+            <Send className="size-4" />
+            <span>Lời mời đã gửi ({sentRequests.length})</span>
+          </button>
 
           <button
             onClick={() => setActiveTab('add')}
@@ -215,21 +232,24 @@ export function FriendsView() {
             friends.map((friend) => (
               <div
                 key={friend.id}
-                className="bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3"
+                className="bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl p-4 shadow-xs flex items-center justify-between gap-3 group hover:border-blue-500/40 transition-all"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <Link
+                  to={`/community/profile/${friend.id}`}
+                  className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-85 transition-opacity"
+                >
                   <img
                     src={friend.avatarUrl}
                     alt={friend.name}
-                    className="size-11 rounded-full object-cover shrink-0"
+                    className="size-11 rounded-full object-cover shrink-0 ring-2 ring-transparent group-hover:ring-blue-500/30 transition-all"
                   />
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
                       {friend.name}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">{friend.email || '@trader'}</p>
+                    <p className="text-xs text-gray-500 truncate">{friend.email || `@user${friend.id}`}</p>
                   </div>
-                </div>
+                </Link>
 
                 <button
                   onClick={() => handleUnfriend(friend.id)}
@@ -241,7 +261,7 @@ export function FriendsView() {
               </div>
             ))
           ) : (
-            <div className="col-span-full py-12 text-center text-gray-500 text-sm">
+            <div className="col-span-full py-12 text-center text-gray-500 text-sm bg-white dark:bg-[#1e222d] rounded-2xl border border-gray-200 dark:border-[#2a2e39]">
               Bạn chưa có bạn bè nào trong danh sách.
             </div>
           )}
@@ -254,30 +274,33 @@ export function FriendsView() {
             receivedRequests.map((req) => (
               <div
                 key={req.id}
-                className="bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl p-4 shadow-xs flex items-center justify-between gap-4"
+                className="bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl p-4 shadow-xs flex items-center justify-between gap-4 group hover:border-blue-500/40 transition-all"
               >
-                <div className="flex items-center gap-3">
+                <Link
+                  to={`/community/profile/${req.from.id}`}
+                  className="flex items-center gap-3 min-w-0 hover:opacity-85 transition-opacity"
+                >
                   <img
                     src={req.from.avatarUrl}
                     alt={req.from.name}
-                    className="size-11 rounded-full object-cover"
+                    className="size-11 rounded-full object-cover shrink-0 ring-2 ring-transparent group-hover:ring-blue-500/30 transition-all"
                   />
-                  <div>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">{req.from.name}</p>
-                    <p className="text-xs text-gray-500">Đã gửi lời mời kết bạn</p>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">{req.from.name}</p>
+                    <p className="text-xs text-gray-500 truncate">Đã gửi lời mời kết bạn · Xem hồ sơ</p>
                   </div>
-                </div>
+                </Link>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
-                    onClick={() => handleAcceptRequest(req.id, req.from.id)}
+                    onClick={() => handleAcceptRequest(req.id)}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-semibold cursor-pointer shadow-xs"
                   >
                     <Check className="size-4" />
                     <span>Chấp nhận</span>
                   </button>
                   <button
-                    onClick={() => handleDeclineRequest(req.id, req.from.id)}
+                    onClick={() => handleDeclineRequest(req.id)}
                     className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold cursor-pointer"
                   >
                     <X className="size-4" />
@@ -300,25 +323,28 @@ export function FriendsView() {
             sentRequests.map((req) => (
               <div
                 key={req.id}
-                className="bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl p-4 shadow-xs flex items-center justify-between gap-4"
+                className="bg-white dark:bg-[#1e222d] border border-gray-200/80 dark:border-[#2a2e39] rounded-2xl p-4 shadow-xs flex items-center justify-between gap-4 group hover:border-blue-500/40 transition-all"
               >
-                <div className="flex items-center gap-3">
+                <Link
+                  to={`/community/profile/${req.friendId}`}
+                  className="flex items-center gap-3 min-w-0 hover:opacity-85 transition-opacity"
+                >
                   <img
                     src={req.friendAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=50&h=50&fit=crop'}
                     alt={req.friendName || 'User'}
-                    className="size-11 rounded-full object-cover"
+                    className="size-11 rounded-full object-cover shrink-0 ring-2 ring-transparent group-hover:ring-blue-500/30 transition-all"
                   />
-                  <div>
-                    <p className="text-sm font-bold text-gray-900 dark:text-white">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate">
                       {req.friendName || req.friendUsername || `User #${req.friendId}`}
                     </p>
                     <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Đang chờ đối phương chấp nhận</p>
                   </div>
-                </div>
+                </Link>
 
                 <button
                   onClick={() => handleCancelSentRequest(req.friendId)}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-100 hover:bg-red-50 hover:text-red-600 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold cursor-pointer"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gray-100 hover:bg-red-50 hover:text-red-600 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl text-xs font-semibold cursor-pointer shrink-0"
                 >
                   <X className="size-4" />
                   <span>Hủy lời mời</span>

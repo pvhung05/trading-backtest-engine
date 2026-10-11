@@ -61,6 +61,14 @@ public class SocialController {
         return ResponseEntity.ok(ApiResponse.ok("Friend removed", null));
     }
 
+    @GetMapping("/friends/status/{targetUserId}")
+    public ResponseEntity<ApiResponse<FriendshipResponse>> getFriendshipStatus(
+            @PathVariable Long targetUserId,
+            @AuthenticationPrincipal UserPrincipal user) {
+        FriendshipResponse response = socialService.getFriendshipStatus(targetUserId, user);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
     @GetMapping("/friends")
     public ResponseEntity<ApiResponse<Page<FriendshipResponse>>> getFriends(
             @RequestParam(required = false, defaultValue = "0") int page,

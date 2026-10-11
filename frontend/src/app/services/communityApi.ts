@@ -252,6 +252,13 @@ export const communityApi = {
     return res.data;
   },
 
+  async getUserIdeas(userId: string | number, page = 0, size = 12): Promise<PageResponse<TradingIdeaDto>> {
+    const res = await apiFetch<ApiResponse<PageResponse<TradingIdeaDto>>>(
+      `/api/community/ideas/user/${userId}?page=${page}&size=${size}`
+    );
+    return res.data;
+  },
+
   async createIdea(payload: CreateIdeaPayload): Promise<TradingIdeaDto> {
     const res = await apiFetch<ApiResponse<TradingIdeaDto>>('/api/community/ideas', {
       method: 'POST',
@@ -325,6 +332,17 @@ export const communityApi = {
     return res.data;
   },
 
+  async getPosts(params?: { page?: number; size?: number }): Promise<PageResponse<PostDto>> {
+    return this.getFeed(params?.page ?? 0, params?.size ?? 10);
+  },
+
+  async getFriendsFeed(page = 0, size = 10): Promise<PageResponse<PostDto>> {
+    const res = await apiFetch<ApiResponse<PageResponse<PostDto>>>(
+      `/api/community/posts/friends?page=${page}&size=${size}`
+    );
+    return res.data;
+  },
+
   async getUserPosts(userId: string | number, page = 0, size = 10): Promise<PageResponse<PostDto>> {
     const res = await apiFetch<ApiResponse<PageResponse<PostDto>>>(
       `/api/community/posts/user/${userId}?page=${page}&size=${size}`
@@ -380,6 +398,10 @@ export const communityApi = {
       body: JSON.stringify({ type: reactionType }),
     });
     return res.data;
+  },
+
+  async reactPost(id: string | number, reactionType: string): Promise<PostDto> {
+    return this.reactToPost(id, reactionType);
   },
 
   async getPostComments(id: string | number): Promise<PostCommentDto[]> {
@@ -497,13 +519,22 @@ export const communityApi = {
   async respondMemberRequest(
     groupId: string | number,
     targetUserId: string | number,
-    approve: boolean
+    approve: boolean | string
   ): Promise<GroupMemberDto> {
+    const isApproved = approve === true || String(approve).toUpperCase() === 'APPROVE';
     const res = await apiFetch<ApiResponse<GroupMemberDto>>(
-      `/api/community/groups/${groupId}/members/${targetUserId}/respond?approve=${approve}`,
+      `/api/community/groups/${groupId}/members/${targetUserId}/respond?approve=${isApproved}`,
       { method: 'POST' }
     );
     return res.data;
+  },
+
+  async respondGroupRequest(
+    groupId: string | number,
+    targetUserId: string | number,
+    action: boolean | string
+  ): Promise<GroupMemberDto> {
+    return this.respondMemberRequest(groupId, targetUserId, action);
   },
 
   async removeGroupMember(
@@ -543,9 +574,17 @@ export const communityApi = {
     );
   },
 
-  async respondFriendRequest(friendshipId: string | number, accept: boolean): Promise<FriendshipDto> {
+  async getFriendshipStatus(targetUserId: string | number): Promise<FriendshipDto> {
     const res = await apiFetch<ApiResponse<FriendshipDto>>(
-      `/api/community/friends/${friendshipId}/respond?accept=${accept}`,
+      `/api/community/friends/status/${targetUserId}`
+    );
+    return res.data;
+  },
+
+  async respondFriendRequest(friendshipId: string | number, accept: boolean | string): Promise<FriendshipDto> {
+    const isAccepted = accept === true || String(accept).toUpperCase() === 'ACCEPT';
+    const res = await apiFetch<ApiResponse<FriendshipDto>>(
+      `/api/community/friends/${friendshipId}/respond?accept=${isAccepted}`,
       { method: 'POST' }
     );
     return res.data;
@@ -555,6 +594,10 @@ export const communityApi = {
     await apiFetch<ApiResponse<void>>(`/api/community/friends/${targetUserId}`, {
       method: 'DELETE',
     });
+  },
+
+  async unfriend(targetUserId: string | number): Promise<void> {
+    return this.removeFriend(targetUserId);
   },
 
   async getFriends(page = 0, size = 20): Promise<PageResponse<FriendshipDto>> {
@@ -569,6 +612,10 @@ export const communityApi = {
       `/api/community/friends/pending?page=${page}&size=${size}`
     );
     return res.data;
+  },
+
+  async getFriendRequests(page = 0, size = 20): Promise<PageResponse<FriendshipDto>> {
+    return this.getPendingFriendRequests(page, size);
   },
 
   async getSentFriendRequests(page = 0, size = 20): Promise<PageResponse<FriendshipDto>> {
@@ -637,6 +684,15 @@ export const communityApi = {
       body: JSON.stringify(payload),
     });
     return res.data;
+  },
+
+  async updateMyProfile(payload: {
+    displayName?: string;
+    avatarUrl?: string;
+    bio?: string;
+    badge?: string;
+  }): Promise<UserProfileDto> {
+    return this.updateProfile(payload);
   },
 
   // === NOTIFICATIONS ===
