@@ -8,6 +8,7 @@ com\trading\auth\dto\response\AuthResponse.class
 com\trading\auth\model\AppUser.class
 com\trading\auth\security\JwtAuthenticationFilter.class
 com\trading\auth\security\UserPrincipal.class
+com\trading\auth\config\DataInitializer.class
 com\trading\auth\config\SecurityConfig.class
 com\trading\auth\dto\request\LoginRequest.class
 com\trading\auth\exception\GlobalExceptionHandler.class

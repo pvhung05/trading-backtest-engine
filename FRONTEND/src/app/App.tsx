@@ -68,10 +68,11 @@ function AppGate() {
               <Route path="/community/friends" element={<FriendsPage />} />
               <Route path="/community/profile" element={<UserProfilePage />} />
               <Route path="/community/profile/:userId" element={<UserProfilePage />} />
+              <Route path="/profile" element={<UserProfilePage />} />
+              <Route path="/profile/:userId" element={<UserProfilePage />} />
               <Route path="/community/category/:category" element={<CommunityPage />} />
             </Route>
 
-            <Route path="/profile" element={<Navigate to="/community/profile" replace />} />
             <Route path="/community/:category" element={<CommunityPage />} />
             
             {/* Single Idea Detail View */}

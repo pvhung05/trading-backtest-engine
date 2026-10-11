@@ -59,6 +59,7 @@ com\trading\community\dto\UpdateUserProfileRequest$UpdateUserProfileRequestBuild
 com\trading\community\dto\CreatePostRequest.class
 com\trading\community\controller\SocialController.class
 com\trading\community\dto\IdeaCommentResponse$IdeaCommentResponseBuilder.class
+com\trading\community\service\PostService.class
 com\trading\community\dto\UserDto.class
 com\trading\community\model\IdeaLike$IdeaLikeBuilder.class
 com\trading\community\dto\UserProfileResponse.class

@@ -1,5 +1,6 @@
 D:\KLTN\trading-backtest-engine\backend\auth-service\src\main\java\com\trading\auth\AuthServiceApplication.java
 D:\KLTN\trading-backtest-engine\backend\auth-service\src\main\java\com\trading\auth\config\CorsConfig.java
+D:\KLTN\trading-backtest-engine\backend\auth-service\src\main\java\com\trading\auth\config\DataInitializer.java
 D:\KLTN\trading-backtest-engine\backend\auth-service\src\main\java\com\trading\auth\config\SecurityConfig.java
 D:\KLTN\trading-backtest-engine\backend\auth-service\src\main\java\com\trading\auth\controller\AuthController.java
 D:\KLTN\trading-backtest-engine\backend\auth-service\src\main\java\com\trading\auth\dto\request\LoginRequest.java
