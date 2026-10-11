@@ -87,6 +87,24 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
+    public Page<PostResponse> getFriendsFeed(int page, int size) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        Pageable pageable = PageRequest.of(page, size);
+
+        if (currentUserId == null) {
+            return Page.empty(pageable);
+        }
+
+        List<Long> friendIds = friendshipRepository.findFriendUserIds(currentUserId);
+        if (friendIds == null || friendIds.isEmpty()) {
+            return Page.empty(pageable);
+        }
+
+        Page<Post> posts = postRepository.findFriendsFeed(friendIds, pageable);
+        return posts.map(post -> toResponse(post, currentUserId));
+    }
+
+    @Transactional(readOnly = true)
     public Page<PostResponse> getUserPosts(Long userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Long currentUserId = SecurityUtils.getCurrentUserId();

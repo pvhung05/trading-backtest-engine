@@ -46,6 +46,14 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok(posts));
     }
 
+    @GetMapping("/friends")
+    public ResponseEntity<ApiResponse<Page<PostResponse>>> getFriendsFeed(
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "10") int size) {
+        Page<PostResponse> posts = postService.getFriendsFeed(page, size);
+        return ResponseEntity.ok(ApiResponse.ok(posts));
+    }
+
     @GetMapping("/user/{userId}")
     public ResponseEntity<ApiResponse<Page<PostResponse>>> getUserPosts(
             @PathVariable Long userId,

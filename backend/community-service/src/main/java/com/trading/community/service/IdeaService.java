@@ -113,6 +113,14 @@ public class IdeaService {
         return toResponse(idea, currentUserId);
     }
 
+    @Transactional(readOnly = true)
+    public Page<TradingIdeaResponse> getUserIdeas(Long userId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        return ideaRepository.findByUserId(userId, pageable)
+                .map(idea -> toResponse(idea, currentUserId));
+    }
+
     @Transactional
     public TradingIdeaResponse createIdea(CreateIdeaRequest request, UserPrincipal user) {
         UserProfile profile = userProfileService.getOrCreateProfile(

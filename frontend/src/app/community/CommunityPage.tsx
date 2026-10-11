@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { TradingIdea, MarketCategory, IdeaFilter, IdeaComment } from './types';
 import { initialTradingIdeas } from './data/mockIdeas';
 import { TradingViewNavbar } from './components/TradingViewNavbar';
@@ -7,12 +7,47 @@ import { IdeaCard } from './components/IdeaCard';
 import { PublishIdeaModal } from './components/PublishIdeaModal';
 import { IdeaDetailPage } from './components/IdeaDetailPage';
 import { useAuth } from '../context/AuthContext';
-import { Plus, Search } from 'lucide-react';
+import { communityApi, type TradingIdeaDto } from '../services';
 
 interface CommunityPageProps {
   onBackToTrading?: () => void;
   hideHeader?: boolean;
   onDetailOpenChange?: (open: boolean) => void;
+}
+
+function mapBackendIdea(dto: TradingIdeaDto): TradingIdea {
+  return {
+    id: String(dto.id),
+    title: dto.title,
+    symbol: dto.symbol,
+    assetClass: (dto.assetClass as any) || 'crypto',
+    timeframe: dto.timeframe || '1D',
+    direction: dto.direction || 'long',
+    coverImage: dto.coverImage || 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&h=450&fit=crop&auto=format',
+    videoDuration: dto.videoDuration,
+    summary: dto.summary || '',
+    content: dto.content || dto.summary || '',
+    author: {
+      id: String(dto.author?.id || '1'),
+      name: dto.author?.name || 'Trader',
+      username: dto.author?.username || 'trader',
+      avatarUrl: dto.author?.avatarUrl || 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=120&h=120&fit=crop&auto=format',
+      badge: dto.author?.badge || 'TRADER',
+      reputation: dto.author?.reputation || 0,
+      followersCount: dto.author?.followersCount || 0,
+    },
+    likes: dto.likes || 0,
+    comments: [],
+    boosts: dto.boosts || 0,
+    views: dto.views || 0,
+    tags: dto.tags || [],
+    isEditorsPick: dto.isEditorsPick || false,
+    createdAt: dto.createdAt || new Date().toISOString(),
+    entryPrice: dto.entryPrice,
+    targetPrice: dto.targetPrice,
+    stopLossPrice: dto.stopLossPrice,
+    backtestRunId: dto.backtestRunId,
+  };
 }
 
 export default function CommunityPage({
@@ -34,6 +69,20 @@ export default function CommunityPage({
     setSelectedIdeaState(idea);
     onDetailOpenChange?.(!!idea);
   };
+
+  useEffect(() => {
+    communityApi
+      .getIdeas({ page: 0, size: 24 })
+      .then((res) => {
+        if (res?.content && res.content.length > 0) {
+          const liveIdeas = res.content.map(mapBackendIdea);
+          setIdeas(liveIdeas);
+        }
+      })
+      .catch((err) => {
+        console.warn('Could not fetch ideas from backend, using default list:', err);
+      });
+  }, []);
 
   // Filter & Search logic
   const filteredIdeas = useMemo(() => {
@@ -92,6 +141,11 @@ export default function CommunityPage({
       }
       return next;
     });
+
+    const numId = Number(id);
+    if (!isNaN(numId)) {
+      communityApi.toggleLikeIdea(numId).catch((err) => console.warn('Idea like API error:', err));
+    }
   };
 
   const handleBoost = (id: string, e?: React.MouseEvent) => {
@@ -101,6 +155,10 @@ export default function CommunityPage({
     );
     if (selectedIdea?.id === id) {
       setSelectedIdea((curr) => (curr ? { ...curr, boosts: curr.boosts + 1 } : null));
+    }
+    const numId = Number(id);
+    if (!isNaN(numId)) {
+      communityApi.boostIdea(numId).catch((err) => console.warn('Idea boost API error:', err));
     }
   };
 
@@ -129,11 +187,39 @@ export default function CommunityPage({
         curr ? { ...curr, comments: [newComment, ...curr.comments] } : null
       );
     }
+
+    const numId = Number(ideaId);
+    if (!isNaN(numId)) {
+      communityApi.addIdeaComment(numId, text).catch((err) => console.warn('Idea comment API error:', err));
+    }
   };
 
-  const handlePublish = (newIdea: TradingIdea) => {
-    setIdeas((prev) => [newIdea, ...prev]);
-    setSelectedIdea(newIdea);
+  const handlePublish = async (newIdea: TradingIdea) => {
+    let finalIdea = newIdea;
+    try {
+      const created = await communityApi.createIdea({
+        title: newIdea.title,
+        symbol: newIdea.symbol,
+        assetClass: newIdea.assetClass,
+        timeframe: newIdea.timeframe,
+        direction: newIdea.direction,
+        entryPrice: newIdea.entryPrice ? Number(newIdea.entryPrice) : undefined,
+        targetPrice: newIdea.targetPrice ? Number(newIdea.targetPrice) : undefined,
+        stopLossPrice: newIdea.stopLossPrice ? Number(newIdea.stopLossPrice) : undefined,
+        summary: newIdea.summary,
+        content: newIdea.content,
+        coverImage: newIdea.coverImage,
+        tags: newIdea.tags,
+      });
+      if (created?.id) {
+        finalIdea = mapBackendIdea(created);
+      }
+    } catch (err) {
+      console.warn('Could not publish idea to backend, saved locally:', err);
+    }
+
+    setIdeas((prev) => [finalIdea, ...prev.filter((it) => it.id !== finalIdea.id)]);
+    setSelectedIdea(finalIdea);
   };
 
   return (

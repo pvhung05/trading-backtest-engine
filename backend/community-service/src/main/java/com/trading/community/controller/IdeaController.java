@@ -66,6 +66,15 @@ public class IdeaController {
         return ResponseEntity.ok(ApiResponse.ok(ideas));
     }
 
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<ApiResponse<Page<TradingIdeaResponse>>> getUserIdeas(
+            @PathVariable Long userId,
+            @RequestParam(required = false, defaultValue = "0") int page,
+            @RequestParam(required = false, defaultValue = "12") int size) {
+        Page<TradingIdeaResponse> ideas = ideaService.getUserIdeas(userId, page, size);
+        return ResponseEntity.ok(ApiResponse.ok(ideas));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<TradingIdeaResponse>> getIdeaById(@PathVariable Long id) {
         TradingIdeaResponse idea = ideaService.getIdeaById(id);
