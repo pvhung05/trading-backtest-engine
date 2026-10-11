@@ -61,11 +61,11 @@ public class AuthServiceImpl implements AuthService {
                     request.username(),
                     request.password()));
         } catch (BadCredentialsException ex) {
-            throw new InvalidCredentialsException("Invalid username or password");
+            throw new InvalidCredentialsException("Tên đăng nhập hoặc mật khẩu không chính xác");
         }
 
-        AppUser user = userRepository.findByUsernameIgnoreCase(request.username())
-                .orElseThrow(() -> new InvalidCredentialsException("Invalid username or password"));
+        AppUser user = userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(request.username(), request.username())
+                .orElseThrow(() -> new InvalidCredentialsException("Tên đăng nhập hoặc mật khẩu không chính xác"));
 
         return new AuthResponse(jwtService.generateToken(UserPrincipal.from(user)), "Bearer", toUserResponse(user));
     }
@@ -73,7 +73,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(readOnly = true)
     public UserResponse currentUser(UserPrincipal principal) {
-        return toUserResponse(userRepository.findByUsernameIgnoreCase(principal.getUsername())
+        return toUserResponse(userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(principal.getUsername(), principal.getUsername())
                 .orElseThrow(() -> new InvalidCredentialsException("User not found")));
     }
 

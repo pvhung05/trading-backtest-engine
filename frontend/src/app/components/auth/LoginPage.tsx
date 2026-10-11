@@ -549,18 +549,19 @@ export function LoginPage() {
 
   const [mode, setMode] = useState<Mode>('signin');
   const [paused, setPaused] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [showEmailForm, setShowEmailForm] = useState(true);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [parallaxPos, setParallaxPos] = useState({ x: 0, y: 0 });
   const leftRef = useRef<HTMLDivElement>(null);
   const ripple = useRipple();
 
   // Form fields
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => localStorage.getItem('trading-remembered-user') || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPw, setConfirmPw] = useState('');
   const [showPw, setShowPw] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState('');
@@ -568,6 +569,14 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
 
   const pwStrength = getPasswordStrength(password);
+
+  const fillDemoAccount = (u: string, p: string) => {
+    setMode('signin');
+    setUsername(u);
+    setPassword(p);
+    setErrors({});
+    setToast(`Đã điền tài khoản: ${u}`);
+  };
 
   // Staggered slogan reveal
   const [sloganVisible, setSloganVisible] = useState(false);
@@ -596,9 +605,11 @@ export function LoginPage() {
   // Switch mode
   const switchMode = (next: Mode) => {
     setMode(next);
-    setShowEmailForm(false);
+    setShowEmailForm(true);
     setErrors({});
-    setUsername('');
+    if (next === 'signup') {
+      setUsername('');
+    }
     setEmail('');
     setPassword('');
     setConfirmPw('');
@@ -612,30 +623,30 @@ export function LoginPage() {
 
     const trimmedUser = username.trim();
     if (!trimmedUser) {
-      errs.username = 'Please enter your username';
+      errs.username = 'Vui lòng nhập tên đăng nhập hoặc email';
       shakes.push('username');
     }
 
     if (mode === 'signup') {
       const trimmedEmail = email.trim();
       if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-        errs.email = 'Please enter a valid email address';
+        errs.email = 'Vui lòng nhập địa chỉ email hợp lệ';
         shakes.push('email');
       }
     }
 
-    if (!password || password.length < 8) {
-      errs.password = 'Password must be at least 8 characters';
+    if (!password || password.length < 6) {
+      errs.password = 'Mật khẩu phải có tối thiểu 6 ký tự';
       shakes.push('password');
     }
 
     if (mode === 'signup') {
       if (confirmPw !== password) {
-        errs.confirmPw = 'Passwords do not match';
+        errs.confirmPw = 'Mật khẩu xác nhận không khớp';
         shakes.push('confirmPw');
       }
       if (!agreeTerms) {
-        errs.terms = 'Please accept the Terms of Service';
+        errs.terms = 'Vui lòng đồng ý với Điều khoản dịch vụ';
         shakes.push('terms');
       }
     }
@@ -663,20 +674,25 @@ export function LoginPage() {
           email: email.trim(),
           password,
         });
-        setToast('Account registered successfully 🎉');
+        setToast('Đăng ký tài khoản thành công 🎉');
       } else {
         await login({
           username: username.trim(),
           password,
         });
-        setToast('Signed in successfully 🎉');
+        if (rememberMe) {
+          localStorage.setItem('trading-remembered-user', username.trim());
+        } else {
+          localStorage.removeItem('trading-remembered-user');
+        }
+        setToast('Đăng nhập thành công 🎉');
       }
     } catch (err: any) {
       console.error('Auth error:', err);
       const msg =
         err?.message ||
         (err?.errors ? Object.values(err.errors).join(', ') : null) ||
-        'Authentication failed. Please verify your credentials.';
+        'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin tài khoản.';
       setErrors({ form: msg });
       setShakeFields(['username', 'password']);
     } finally {
@@ -931,29 +947,265 @@ export function LoginPage() {
           </div>
 
           {/* Form Card Container */}
-          <div className="w-full max-w-[370px] mode-content" key={mode}>
+          <div className="w-full max-w-[390px] mode-content" key={mode}>
             {/* Form Title */}
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-6 text-center tracking-tight">
-              {mode === 'signup' ? 'Create Account' : 'Welcome Back'}
-            </h2>
+            <div className="text-center mb-5">
+              <h2 className="text-2xl font-extrabold text-gray-900 dark:text-gray-100 tracking-tight">
+                {mode === 'signup' ? 'Tạo tài khoản mới' : 'Đăng nhập hệ thống'}
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {mode === 'signup'
+                  ? 'Gia nhập cộng đồng định lượng và giao dịch tự động'
+                  : 'Chào mừng bạn quay trở lại với BacktestPro'}
+              </p>
+            </div>
+
+            {/* Quick Demo Accounts Banner (chỉ hiển thị khi đang ở chế độ đăng nhập) */}
+            {mode === 'signin' && (
+              <div className="mb-4 p-3 bg-gradient-to-r from-blue-50/90 to-indigo-50/90 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200/80 dark:border-blue-900/60 rounded-xl space-y-2 shadow-2xs">
+                <div className="flex items-center justify-between text-xs text-blue-700 dark:text-blue-300 font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <span>⚡</span>
+                    <span>Tài khoản kiểm thử nhanh (Demo)</span>
+                  </span>
+                  <span className="text-[10px] text-gray-500 dark:text-gray-400 font-normal">1-Click fill</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => fillDemoAccount('admin', 'admin123')}
+                    className="py-1.5 px-2 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 hover:border-blue-500 transition-all text-left flex items-center justify-between cursor-pointer shadow-xs"
+                    title="Username: admin | Pass: admin123"
+                  >
+                    <span>👑 Admin</span>
+                    <span className="text-[10px] font-mono text-gray-400">admin</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fillDemoAccount('demo_trader', 'demo123')}
+                    className="py-1.5 px-2 bg-white dark:bg-gray-800 hover:bg-blue-50 dark:hover:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 hover:border-blue-500 transition-all text-left flex items-center justify-between cursor-pointer shadow-xs"
+                    title="Username: demo_trader | Pass: demo123"
+                  >
+                    <span>📊 Trader</span>
+                    <span className="text-[10px] font-mono text-gray-400">demo</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Form-level Error Alert */}
             {errors.form && (
-              <div className="mb-4 p-3 rounded-lg bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-medium shake">
-                {errors.form}
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-medium shake flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-rose-500 shrink-0" />
+                <span>{errors.form}</span>
               </div>
             )}
+
+            {/* Main Interactive Form */}
+            <form onSubmit={onSubmit} className="space-y-3">
+              {/* Username or Email Input */}
+              <div className={shakeFields.includes('username') ? 'shake' : ''}>
+                <FloatingInput
+                  id="username"
+                  label={mode === 'signup' ? 'Tên đăng nhập (Username)' : 'Tên đăng nhập hoặc Email'}
+                  type="text"
+                  value={username}
+                  onChange={setUsername}
+                  error={errors.username}
+                  autoComplete="username"
+                />
+              </div>
+
+              {/* Email (signup only) */}
+              {mode === 'signup' && (
+                <div className={shakeFields.includes('email') ? 'shake' : ''}>
+                  <FloatingInput
+                    id="email"
+                    label="Địa chỉ Email"
+                    type="email"
+                    value={email}
+                    onChange={setEmail}
+                    error={errors.email}
+                    autoComplete="email"
+                  />
+                </div>
+              )}
+
+              {/* Password */}
+              <div className={shakeFields.includes('password') ? 'shake' : ''}>
+                <FloatingInput
+                  id="password"
+                  label="Mật khẩu"
+                  type={showPw ? 'text' : 'password'}
+                  value={password}
+                  onChange={setPassword}
+                  error={errors.password}
+                  autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                  rightElement={
+                    <button
+                      type="button"
+                      aria-label={showPw ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                      onClick={() => setShowPw((p) => !p)}
+                      className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer p-1"
+                    >
+                      {showPw ? (
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="18"
+                          height="18"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg
+                          viewBox="0 0 24 24"
+                          width="18"
+                          height="18"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                        >
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  }
+                />
+              </div>
+
+              {/* Password strength meter (signup only) */}
+              {mode === 'signup' && password.length > 0 && (
+                <div className="pt-0.5">
+                  <div className="flex gap-1 mb-1">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div
+                        key={i}
+                        className="flex-1 h-1 rounded-sm transition-all duration-300"
+                        style={{
+                          backgroundColor:
+                            i <= pwStrength.score ? pwStrength.color : 'rgba(156, 163, 175, 0.2)',
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[11px] font-medium" style={{ color: pwStrength.color }}>
+                    Độ mạnh: {pwStrength.label}
+                  </span>
+                </div>
+              )}
+
+              {/* Confirm password (signup only) */}
+              {mode === 'signup' && (
+                <div className={shakeFields.includes('confirmPw') ? 'shake' : ''}>
+                  <FloatingInput
+                    id="confirmPw"
+                    label="Xác nhận mật khẩu"
+                    type={showPw ? 'text' : 'password'}
+                    value={confirmPw}
+                    onChange={setConfirmPw}
+                    error={errors.confirmPw}
+                    autoComplete="new-password"
+                  />
+                </div>
+              )}
+
+              {/* Remember me & Forgot Password (signin only) */}
+              {mode === 'signin' && (
+                <div className="flex items-center justify-between pt-0.5 text-xs">
+                  <label className="flex items-center gap-2 cursor-pointer text-gray-600 dark:text-gray-400 select-none">
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="accent-blue-600 rounded cursor-pointer size-3.5"
+                    />
+                    <span>Ghi nhớ đăng nhập</span>
+                  </label>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setToast('Vui lòng liên hệ quản trị viên (admin@quant.io) để đặt lại mật khẩu');
+                    }}
+                    className="text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                  >
+                    Quên mật khẩu?
+                  </a>
+                </div>
+              )}
+
+              {/* Terms agreement checkbox (signup only) */}
+              {mode === 'signup' && (
+                <div className={`pt-1 ${shakeFields.includes('terms') ? 'shake' : ''}`}>
+                  <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-600 dark:text-gray-400 leading-normal">
+                    <input
+                      type="checkbox"
+                      checked={agreeTerms}
+                      onChange={(e) => setAgreeTerms(e.target.checked)}
+                      className="mt-0.5 accent-blue-600 rounded shrink-0 cursor-pointer"
+                    />
+                    <span>
+                      Tôi đồng ý với{' '}
+                      <a href="#" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
+                        Điều khoản dịch vụ
+                      </a>{' '}
+                      và{' '}
+                      <a href="#" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
+                        Chính sách bảo mật
+                      </a>
+                    </span>
+                  </label>
+                  {errors.terms && <p className="text-red-500 text-xs mt-1">{errors.terms}</p>}
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                ref={submitRef}
+                type="submit"
+                disabled={busy}
+                onMouseMove={handleSubmitMouseMove}
+                onMouseLeave={() => setMagnetOffset({ x: 0, y: 0 })}
+                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 bg-[length:200%_auto] text-white text-sm font-bold cursor-pointer shadow-md shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2 mt-3"
+                style={{
+                  transform: `translate(${magnetOffset.x}px, ${magnetOffset.y}px)`,
+                }}
+              >
+                {busy ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin text-white" />
+                    <span>Đang xử lý…</span>
+                  </>
+                ) : mode === 'signup' ? (
+                  'Đăng ký tài khoản'
+                ) : (
+                  'Đăng nhập'
+                )}
+              </button>
+            </form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+              <span className="text-xs text-gray-400 font-medium">Hoặc tiếp tục với</span>
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+            </div>
 
             {/* Google OAuth Button */}
             <button
               onClick={(e) => {
                 ripple(e);
-                setToast('Google OAuth connecting…');
+                setToast('Google OAuth đang được tích hợp…');
               }}
               aria-label="Sign in with Google"
-              className="w-full py-2.5 px-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm font-semibold cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-200 mb-3 hover:border-blue-600 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-500/10"
+              className="w-full py-2.5 px-4 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-xs font-semibold cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-200 mb-2.5 hover:border-blue-600 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-500/10 shadow-xs"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24">
+              <svg width="18" height="18" viewBox="0 0 24 24">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   fill="#4285F4"
@@ -971,17 +1223,17 @@ export function LoginPage() {
                   fill="#EA4335"
                 />
               </svg>
-              <span>Continue with Google</span>
+              <span>Tiếp tục với Google</span>
             </button>
 
-            {/* 5 Social Network Buttons */}
-            <div className="flex gap-2 mb-4 justify-center">
+            {/* Social Network Buttons */}
+            <div className="flex gap-2 justify-center">
               {SOCIALS.map((s) => (
                 <button
                   key={s.id}
-                  className="social-btn flex-1 aspect-square border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 cursor-pointer flex items-center justify-center p-2.5 hover:border-blue-500 hover:shadow-md transition-all"
+                  className="social-btn flex-1 aspect-square border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 cursor-pointer flex items-center justify-center p-2 hover:border-blue-500 hover:shadow-md transition-all shadow-xs"
                   aria-label={`Sign in with ${s.label}`}
-                  onClick={() => setToast(`Connecting with ${s.label}…`)}
+                  onClick={() => setToast(`Đang kết nối ${s.label}…`)}
                   style={{ color: s.color }}
                 >
                   <span className="tooltip">{s.label}</span>
@@ -989,205 +1241,17 @@ export function LoginPage() {
                 </button>
               ))}
             </div>
-
-            {/* Divider */}
-            <div className="flex items-center gap-3 mb-3">
-              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-              <span className="text-xs text-gray-400 font-medium">or</span>
-              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-            </div>
-
-            {/* Email Form Toggle Button */}
-            <button
-              onClick={(e) => {
-                ripple(e);
-                setShowEmailForm((f) => !f);
-              }}
-              aria-expanded={showEmailForm}
-              className="w-full py-2.5 px-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-200 text-sm font-semibold cursor-pointer flex items-center justify-center gap-2.5 transition-all duration-200 hover:border-blue-600 hover:-translate-y-0.5 hover:shadow-md hover:shadow-blue-500/10 mb-1"
-            >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                <polyline points="22,6 12,13 2,6" />
-              </svg>
-              <span>{mode === 'signup' ? 'Sign up with Credentials' : 'Sign in with Credentials'}</span>
-            </button>
-
-            {/* Slide-down Form */}
-            {showEmailForm && (
-              <form onSubmit={onSubmit} className="email-form-open pt-3 space-y-2.5">
-                {/* Username */}
-                <div className={shakeFields.includes('username') ? 'shake' : ''}>
-                  <FloatingInput
-                    id="username"
-                    label="Username"
-                    type="text"
-                    value={username}
-                    onChange={setUsername}
-                    error={errors.username}
-                    autoComplete="username"
-                  />
-                </div>
-
-                {/* Email (signup only) */}
-                {mode === 'signup' && (
-                  <div className={shakeFields.includes('email') ? 'shake' : ''}>
-                    <FloatingInput
-                      id="email"
-                      label="Email Address"
-                      type="email"
-                      value={email}
-                      onChange={setEmail}
-                      error={errors.email}
-                      autoComplete="email"
-                    />
-                  </div>
-                )}
-
-                {/* Password */}
-                <div className={shakeFields.includes('password') ? 'shake' : ''}>
-                  <FloatingInput
-                    id="password"
-                    label="Password"
-                    type={showPw ? 'text' : 'password'}
-                    value={password}
-                    onChange={setPassword}
-                    error={errors.password}
-                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                    rightElement={
-                      <button
-                        type="button"
-                        aria-label={showPw ? 'Hide password' : 'Show password'}
-                        onClick={() => setShowPw((p) => !p)}
-                        className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer"
-                      >
-                        {showPw ? (
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="18"
-                            height="18"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-                            <line x1="1" y1="1" x2="23" y2="23" />
-                          </svg>
-                        ) : (
-                          <svg
-                            viewBox="0 0 24 24"
-                            width="18"
-                            height="18"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          >
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                            <circle cx="12" cy="12" r="3" />
-                          </svg>
-                        )}
-                      </button>
-                    }
-                  />
-                </div>
-
-                {/* Password strength meter (signup only) */}
-                {mode === 'signup' && password.length > 0 && (
-                  <div className="pt-0.5">
-                    <div className="flex gap-1 mb-1">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <div
-                          key={i}
-                          className="flex-1 h-1 rounded-sm transition-all duration-300"
-                          style={{
-                            backgroundColor:
-                              i <= pwStrength.score ? pwStrength.color : 'rgba(156, 163, 175, 0.2)',
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-[11px] font-medium" style={{ color: pwStrength.color }}>
-                      {pwStrength.label}
-                    </span>
-                  </div>
-                )}
-
-                {/* Confirm password (signup only) */}
-                {mode === 'signup' && (
-                  <div className={shakeFields.includes('confirmPw') ? 'shake' : ''}>
-                    <FloatingInput
-                      id="confirmPw"
-                      label="Confirm Password"
-                      type={showPw ? 'text' : 'password'}
-                      value={confirmPw}
-                      onChange={setConfirmPw}
-                      error={errors.confirmPw}
-                      autoComplete="new-password"
-                    />
-                  </div>
-                )}
-
-                {/* Terms agreement checkbox (signup only) */}
-                {mode === 'signup' && (
-                  <div className={`pt-1 ${shakeFields.includes('terms') ? 'shake' : ''}`}>
-                    <label className="flex items-start gap-2.5 cursor-pointer text-xs text-gray-600 dark:text-gray-400 leading-normal">
-                      <input
-                        type="checkbox"
-                        checked={agreeTerms}
-                        onChange={(e) => setAgreeTerms(e.target.checked)}
-                        className="mt-0.5 accent-blue-600 rounded shrink-0 cursor-pointer"
-                      />
-                      <span>
-                        I agree to the{' '}
-                        <a href="#" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
-                          Terms of Service
-                        </a>{' '}
-                        and{' '}
-                        <a href="#" onClick={(e) => e.preventDefault()} className="text-blue-600 hover:underline">
-                          Privacy Policy
-                        </a>
-                      </span>
-                    </label>
-                    {errors.terms && <p className="text-red-500 text-xs mt-1">{errors.terms}</p>}
-                  </div>
-                )}
-
-                {/* Magnetic Shimmer Submit Button */}
-                <button
-                  ref={submitRef}
-                  type="submit"
-                  disabled={busy}
-                  onMouseMove={handleSubmitMouseMove}
-                  onMouseLeave={() => setMagnetOffset({ x: 0, y: 0 })}
-                  className="w-full py-3 px-4 rounded-lg bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 bg-[length:200%_auto] text-white text-sm font-semibold cursor-pointer shadow-md shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/40 transition-all active:scale-[0.99] disabled:opacity-70 flex items-center justify-center gap-2 mt-2"
-                  style={{
-                    transform: `translate(${magnetOffset.x}px, ${magnetOffset.y}px)`,
-                  }}
-                >
-                  {busy ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin text-white" />
-                      <span>Processing…</span>
-                    </>
-                  ) : mode === 'signup' ? (
-                    'Create Account'
-                  ) : (
-                    'Sign In'
-                  )}
-                </button>
-              </form>
-            )}
           </div>
 
           {/* Mode Switcher Footer */}
-          <div className="mt-7 w-full max-w-[370px] pt-4 border-t border-gray-200 dark:border-gray-800 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {mode === 'signup' ? 'Already have an account? ' : "Don't have an account? "}
+          <div className="mt-6 w-full max-w-[390px] pt-4 border-t border-gray-200 dark:border-gray-800 text-center">
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {mode === 'signup' ? 'Đã có tài khoản? ' : 'Chưa có tài khoản? '}
               <button
                 onClick={() => switchMode(mode === 'signup' ? 'signin' : 'signup')}
-                className="text-blue-600 dark:text-blue-400 font-semibold cursor-pointer underline underline-offset-2 hover:text-blue-700"
+                className="text-blue-600 dark:text-blue-400 font-bold cursor-pointer underline underline-offset-2 hover:text-blue-700 transition-colors"
               >
-                {mode === 'signup' ? 'Sign in now' : 'Create account'}
+                {mode === 'signup' ? 'Đăng nhập ngay' : 'Đăng ký miễn phí'}
               </button>
             </p>
           </div>

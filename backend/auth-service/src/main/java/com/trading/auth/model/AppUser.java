@@ -58,6 +58,10 @@ public class AppUser {
         return new AppUser(username, email, passwordHash, Role.USER);
     }
 
+    public static AppUser create(String username, String email, String passwordHash, Role role) {
+        return new AppUser(username, email, passwordHash, role != null ? role : Role.USER);
+    }
+
     @PrePersist
     void onCreate() {
         Instant now = Instant.now();

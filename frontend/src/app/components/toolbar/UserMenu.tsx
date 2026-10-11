@@ -63,13 +63,20 @@ export function UserMenu({ userName, onLogout }: UserMenuProps) {
         {/* Dropdown Menu Modal */}
         {open && (
           <div
-            className="absolute left-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-2xl p-2 z-50 select-none animate-in fade-in zoom-in-95 duration-150 origin-top-left"
+            className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/80 shadow-2xl p-2 z-50 select-none animate-in fade-in zoom-in-95 duration-150 origin-top-right"
             role="menu"
           >
             {/* Header: User Information */}
             <div className="px-3.5 py-3 border-b border-gray-100 dark:border-gray-700/60">
-              <div className="font-bold text-[15px] text-gray-900 dark:text-gray-100 tracking-tight leading-snug truncate">
-                {displayName}
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-bold text-[15px] text-gray-900 dark:text-gray-100 tracking-tight leading-snug truncate">
+                  {displayName}
+                </div>
+                {user?.role && (
+                  <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-400 shrink-0">
+                    {user.role}
+                  </span>
+                )}
               </div>
               <div className="text-xs text-gray-400 dark:text-gray-400 mt-0.5 truncate font-normal">
                 {displayEmail}
