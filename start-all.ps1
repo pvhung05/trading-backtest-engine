@@ -5,6 +5,22 @@ Write-Host "==========================================" -ForegroundColor Cyan
 
 $root = $PSScriptRoot
 
+# Check if any port is already in use
+$ports = @(8080, 8081, 8082, 8083, 8084)
+$alreadyRunning = @()
+foreach ($p in $ports) {
+    if (Get-NetTCPConnection -LocalPort $p -State Listen -ErrorAction SilentlyContinue) {
+        $alreadyRunning += $p
+    }
+}
+
+if ($alreadyRunning.Count -gt 0) {
+    Write-Host "[INFO] Detected active services on port(s): $($alreadyRunning -join ', ')" -ForegroundColor Yellow
+    Write-Host "Stopping existing services to prevent port conflict..." -ForegroundColor Yellow
+    & "$root\stop-all.ps1"
+    Start-Sleep -Seconds 2
+}
+
 # 1. Start Auth Service (Port 8081)
 Write-Host "[1/5] Starting Auth Service (Port 8081)..." -ForegroundColor Yellow
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$root\backend\auth-service'; Write-Host '=== AUTH SERVICE (8081) ===' -ForegroundColor Green; mvn spring-boot:run"
@@ -35,6 +51,9 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$ro
 
 Write-Host "==========================================" -ForegroundColor Cyan
 Write-Host "All 5 services are launching in separate windows!" -ForegroundColor Green
+Write-Host "Note: Services take ~10-15s to fully initialize." -ForegroundColor Yellow
 Write-Host "Gateway URL:   http://localhost:8080" -ForegroundColor White
 Write-Host "Community URL: http://localhost:8084" -ForegroundColor White
+Write-Host "Check status:  .\check-status.ps1" -ForegroundColor Cyan
+Write-Host "Stop all:      .\stop-all.ps1" -ForegroundColor Cyan
 Write-Host "==========================================" -ForegroundColor Cyan
