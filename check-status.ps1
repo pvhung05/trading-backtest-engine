@@ -8,7 +8,8 @@ $services = @(
     @{ Name = "Auth Service";      Port = 8081; Url = "http://localhost:8081/actuator/health" },
     @{ Name = "Realtime Service";  Port = 8082; Url = "http://localhost:8082/api/market/health" },
     @{ Name = "Backtest Service";  Port = 8083; Url = "http://localhost:8083/api/backtest-runs" },
-    @{ Name = "Community Service"; Port = 8084; Url = "http://localhost:8084/api/community/health" }
+    @{ Name = "Community Service"; Port = 8084; Url = "http://localhost:8084/api/community/health" },
+    @{ Name = "Script Service";    Port = 8085; Url = "http://localhost:8085/api-docs" }
 )
 
 foreach ($svc in $services) {
