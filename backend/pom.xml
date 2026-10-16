@@ -22,6 +22,7 @@
 		<module>backtest-service</module>
 		<module>realtime-service</module>
 		<module>community-service</module>
+		<module>script-service</module>
 	</modules>
 
 	<properties>

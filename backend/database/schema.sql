@@ -404,3 +404,72 @@ CREATE TABLE IF NOT EXISTS `community_notifications` (
     INDEX `idx_notifications_created_at` (`created_at` DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ====================================================================
+-- SCRIPT SERVICE TABLES
+-- ====================================================================
+
+-- --------------------------------------------------------------------
+-- 16. Table: scripts (Quản lý các thuật toán / kịch bản do người dùng viết)
+-- --------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `scripts` (
+    `id` VARCHAR(36) PRIMARY KEY,
+    `user_id` BIGINT NOT NULL,
+    `title` VARCHAR(150) NOT NULL,
+    `description` TEXT NULL,
+    `visibility` VARCHAR(20) NOT NULL DEFAULT 'PRIVATE',
+    `is_archived` BOOLEAN NOT NULL DEFAULT FALSE,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX `idx_scripts_user` (`user_id`, `created_at` DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------------------
+-- 17. Table: script_versions (Quản lý các phiên bản kịch bản bất biến)
+-- --------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `script_versions` (
+    `id` VARCHAR(36) PRIMARY KEY,
+    `script_id` VARCHAR(36) NOT NULL,
+    `version_number` INT NOT NULL,
+    `source_code` MEDIUMTEXT NOT NULL,
+    `compiled_ir` JSON NOT NULL,
+    `source_hash` CHAR(64) NOT NULL,
+    `ast_complexity_score` INT NOT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT `fk_versions_script` FOREIGN KEY (`script_id`) REFERENCES `scripts` (`id`) ON DELETE CASCADE,
+    UNIQUE KEY `uk_script_version` (`script_id`, `version_number`),
+    INDEX `idx_version_hash` (`source_hash`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------------------
+-- 18. Table: script_backtest_jobs (Quản lý các job thực thi backtest từ script)
+-- --------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `script_backtest_jobs` (
+    `id` VARCHAR(36) PRIMARY KEY,
+    `user_id` BIGINT NOT NULL,
+    `script_id` VARCHAR(36) NULL,
+    `script_version_id` VARCHAR(36) NULL,
+    `symbol` VARCHAR(20) NOT NULL,
+    `timeframe` VARCHAR(10) NOT NULL,
+    `start_time` TIMESTAMP NOT NULL,
+    `end_time` TIMESTAMP NOT NULL,
+    `initial_capital` DECIMAL(19, 4) NOT NULL,
+    `commission_rate` DECIMAL(8, 6) NOT NULL,
+    `slippage_rate` DECIMAL(8, 6) NOT NULL,
+    `position_size_percent` DECIMAL(8, 4) NOT NULL,
+    `status` VARCHAR(20) NOT NULL DEFAULT 'QUEUED',
+    `error_code` VARCHAR(50) NULL,
+    `error_message` VARCHAR(500) NULL,
+    `idempotency_key` CHAR(64) NOT NULL UNIQUE,
+    `backtest_run_id` BIGINT NULL,
+    `result_payload` LONGTEXT NULL,
+    `duration_ms` BIGINT NULL,
+    `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+    INDEX `idx_jobs_user_status` (`user_id`, `status`),
+    INDEX `idx_jobs_idempotency` (`idempotency_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+

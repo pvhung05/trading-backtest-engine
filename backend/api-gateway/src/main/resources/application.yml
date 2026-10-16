@@ -63,6 +63,12 @@ spring:
           predicates:
             - Path=/api/community/**
 
+        # Script Service Routes
+        - id: script-service
+          uri: http://localhost:8085
+          predicates:
+            - Path=/api/scripts/**
+
 management:
   endpoints:
     web:
