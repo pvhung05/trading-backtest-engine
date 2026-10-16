@@ -17,6 +17,7 @@ import {
   Heart,
   Flag,
   Wand2,
+  Code2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { IntervalDropdown } from '../chart/IntervalDropdown';
@@ -60,12 +61,14 @@ export function LeftToolbar() {
 export function TopToolbar({
   onSelectIndicator,
   onSelectStrategy,
+  onOpenPineEditor,
   userName,
   onLogout,
   onOpenCommunity,
 }: {
   onSelectIndicator?: (indicator: SelectedIndicator) => void;
   onSelectStrategy?: (strategy: SelectedStrategy) => void;
+  onOpenPineEditor?: (script?: { id?: string; title: string; sourceCode: string }) => void;
   userName?: string;
   onLogout?: () => void;
   onOpenCommunity?: () => void;
@@ -117,6 +120,14 @@ export function TopToolbar({
             <FileCode className="w-4 h-4 text-emerald-500" />
             My Scripts
           </button>
+
+          <button
+            onClick={() => onOpenPineEditor?.()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-950/50 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-lg text-sm font-semibold text-blue-600 dark:text-blue-400 transition-all duration-150 active:scale-[0.98] cursor-pointer"
+          >
+            <Code2 className="w-4 h-4 text-blue-500" />
+            Pine Editor
+          </button>
         </div>
 
         <div className="flex items-center gap-1.5 text-gray-700 dark:text-gray-200">
@@ -142,6 +153,7 @@ export function TopToolbar({
       <IndicatorsDialog
         open={indicatorsOpen}
         onClose={() => setIndicatorsOpen(false)}
+        onOpenPineEditor={onOpenPineEditor}
         onSelect={(ind) =>
           onSelectIndicator?.({
             id: `ind-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -154,12 +166,14 @@ export function TopToolbar({
       <IndicatorsDialog
         open={strategiesOpen}
         onClose={() => setStrategiesOpen(false)}
+        onOpenPineEditor={onOpenPineEditor}
         onSelect={(ind) => onSelectStrategy?.(ind as SelectedStrategy)}
         initialTab="strategies"
       />
       <IndicatorsDialog
         open={myScriptsOpen}
         onClose={() => setMyScriptsOpen(false)}
+        onOpenPineEditor={onOpenPineEditor}
         onSelect={(ind) =>
           onSelectIndicator?.({
             id: `ind-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -177,9 +191,11 @@ export function TopToolbar({
 export function ChartHeader({
   onSelectIndicator,
   onSelectStrategy,
+  onOpenPineEditor,
 }: {
   onSelectIndicator?: (indicator: SelectedIndicator) => void;
   onSelectStrategy?: (strategy: SelectedStrategy) => void;
+  onOpenPineEditor?: (script?: { id?: string; title: string; sourceCode: string }) => void;
 }) {
   const { data, symbol, interval, setInterval } = useOHLCV();
   const [indicatorsOpen, setIndicatorsOpen] = useState(false);
@@ -213,6 +229,14 @@ export function ChartHeader({
           <span>Indicators</span>
         </button>
 
+        <button
+          onClick={() => onOpenPineEditor?.()}
+          className="flex items-center gap-1.5 px-2.5 py-1 hover:bg-blue-50 dark:hover:bg-blue-950/50 rounded-md text-xs font-medium text-blue-600 dark:text-blue-400 transition-all duration-150 active:scale-[0.98] cursor-pointer shrink-0"
+        >
+          <Code2 className="w-3.5 h-3.5 text-blue-500" />
+          <span>Pine Editor</span>
+        </button>
+
         <div className="w-px h-3.5 bg-gray-200 dark:bg-gray-700 shrink-0" />
 
         <div className="flex items-center gap-3 shrink-0">
@@ -244,6 +268,7 @@ export function ChartHeader({
       <IndicatorsDialog
         open={indicatorsOpen}
         onClose={() => setIndicatorsOpen(false)}
+        onOpenPineEditor={onOpenPineEditor}
         onSelect={(ind, tab) => {
           if (tab === 'strategies' || ind.strategyType) {
             onSelectStrategy?.({

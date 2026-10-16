@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import type { ImperativePanelHandle } from 'react-resizable-panels';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 
-import { ChartHeader } from '../components/toolbar';
+import { ChartHeader } from '../components/toolbar/Toolbar';
 import { TradingChart, TimeframeBar } from '../components/chart';
 import { StrategyBar } from '../components/strategy';
 import { Watchlist } from '../components/market';
+import { PineEditor } from '../components/editor/PineEditor';
 import { ErrorBoundary } from '../components/common';
 import { useOHLCV } from '../context';
-import type { SelectedIndicator, SelectedStrategy } from '../types';
+import type { SelectedIndicator, SelectedStrategy, BacktestRunDetailResponse } from '../types';
 import { getItem, setItem } from '../utils';
 
 export type PersistedTimeframe = '1D' | '5D' | '1M' | '3M' | '6M' | 'YTD' | '1Y' | '5Y' | 'All';
@@ -36,7 +37,7 @@ const DEFAULT_APP_STATE: PersistedAppState = {
 const STORAGE_KEY = 'trading-app-state';
 
 function loadAppState(): PersistedAppState {
-  const saved = getItem<PersistedAppState>(STORAGE_KEY);
+  const saved = getItem<PersistedAppState>(STORAGE_KEY, DEFAULT_APP_STATE);
   if (!saved) return DEFAULT_APP_STATE;
   return {
     selectedIndicators: Array.isArray(saved.selectedIndicators)
@@ -56,7 +57,7 @@ function loadAppState(): PersistedAppState {
 }
 
 export function ProductsPage() {
-  const { activeStrategyName, setActiveStrategyName, clearStrategyResult } = useOHLCV();
+  const { activeStrategyName, setActiveStrategyName, setBacktestResultForStrategy, clearStrategyResult } = useOHLCV();
   const initial = loadAppState();
 
   const [selectedIndicators, setSelectedIndicators] = useState<SelectedIndicator[]>(
@@ -87,6 +88,10 @@ export function ProductsPage() {
 
   const [dateRange, setDateRange] = useState<[string, string]>(initial.dateRange);
   const [capital, setCapital] = useState<number>(initial.capital);
+
+  const [isPineEditorOpen, setIsPineEditorOpen] = useState(false);
+  const [activeScript, setActiveScript] = useState<{ id?: string; title: string; sourceCode: string } | null>(null);
+  const rightPanelRef = useRef<ImperativePanelHandle | null>(null);
 
   useEffect(() => {
     setItem<PersistedAppState>(STORAGE_KEY, {
@@ -273,16 +278,85 @@ export function ProductsPage() {
     ? new Set(selectedStrategies.map((s) => s.name))
     : hiddenStrategies;
 
+  const handleOpenPineEditor = (script?: { id?: string; title: string; sourceCode: string }) => {
+    if (script) {
+      setActiveScript(script);
+    } else {
+      setActiveScript({ title: 'Untitled script', sourceCode: '' });
+    }
+    setIsPineEditorOpen(true);
+    if (rightPanelRef.current) {
+      rightPanelRef.current.resize(45);
+    }
+  };
+
+  const handleApplyScriptToChart = (strat: {
+    name: string;
+    badge?: 'NEW' | 'BETA';
+    scriptId?: string;
+    result?: BacktestRunDetailResponse;
+    plots?: Array<{ title: string; indicator: string; period?: number; color?: string; linewidth?: number }>;
+  }) => {
+    setSelectedStrategies((prev) => {
+      if (prev.some((s) => s.name === strat.name)) return prev;
+      return [...prev, { name: strat.name, badge: strat.badge }];
+    });
+    setActiveStrategyName(strat.name);
+    if (strat.result) {
+      setBacktestResultForStrategy(strat.name, strat.result);
+    }
+    setHiddenStrategies((prev) => {
+      if (!prev.has(strat.name)) return prev;
+      const next = new Set(prev);
+      next.delete(strat.name);
+      return next;
+    });
+    setAllStrategiesHidden(false);
+
+    // If script contains plot(...) statements, render them as indicators on the chart!
+    if (strat.plots && strat.plots.length > 0) {
+      const scriptIndicators: SelectedIndicator[] = strat.plots.map((p, idx) => {
+        const indType = p.indicator || 'EMA';
+        return {
+          id: `script-${strat.name}-${idx}-${p.title}`,
+          name: p.title || `${indType} (${p.period || 14})`,
+          type: indType,
+          period: p.period || 14,
+          color: p.color || (idx === 0 ? '#3b82f6' : '#ef4444'),
+          fastPeriod: 12,
+          slowPeriod: 26,
+          signalPeriod: 9,
+          multiplier: 2,
+          oversold: 30,
+          overbought: 70,
+        };
+      });
+
+      setSelectedIndicators((prev) => {
+        const nonScript = prev.filter((i) => !i.id?.startsWith(`script-${strat.name}-`));
+        return [...nonScript, ...scriptIndicators];
+      });
+      setAllIndicatorsHidden(false);
+    }
+
+    if (strategyPanelRef.current) {
+      strategyPanelRef.current.expand();
+      strategyPanelCollapsedRef.current = false;
+      setStrategyExpanded(true);
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
         <div className="flex-1 flex flex-col min-w-0">
           <PanelGroup direction="horizontal">
-            <Panel defaultSize={82} minSize={50}>
+            <Panel defaultSize={isPineEditorOpen ? 55 : 82} minSize={30}>
               <div className="h-full flex flex-col bg-white dark:bg-gray-800">
                 <ChartHeader
                   onSelectIndicator={handleSelectIndicator}
                   onSelectStrategy={handleSelectStrategy}
+                  onOpenPineEditor={handleOpenPineEditor}
                 />
 
                 <div className="flex-1 min-h-0">
@@ -402,10 +476,31 @@ export function ProductsPage() {
 
             <PanelResizeHandle className="w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 active:bg-blue-600 dark:hover:bg-blue-500 dark:active:bg-blue-600 cursor-col-resize transition-colors relative after:absolute after:inset-y-0 after:-left-1.5 after:-right-1.5 after:z-30" />
 
-            <Panel defaultSize={18} minSize={0} maxSize={40} collapsible>
-              <ErrorBoundary fallbackTitle="Watchlist Error">
-                <Watchlist />
-              </ErrorBoundary>
+            <Panel
+              ref={rightPanelRef}
+              defaultSize={isPineEditorOpen ? 45 : 18}
+              minSize={isPineEditorOpen ? 25 : 0}
+              maxSize={isPineEditorOpen ? 75 : 40}
+              collapsible
+            >
+              {isPineEditorOpen ? (
+                <PineEditor
+                  initialScript={activeScript}
+                  dateRange={dateRange}
+                  initialCapital={capital}
+                  onClose={() => {
+                    setIsPineEditorOpen(false);
+                    if (rightPanelRef.current) {
+                      rightPanelRef.current.resize(18);
+                    }
+                  }}
+                  onApplyToChart={handleApplyScriptToChart}
+                />
+              ) : (
+                <ErrorBoundary fallbackTitle="Watchlist Error">
+                  <Watchlist />
+                </ErrorBoundary>
+              )}
             </Panel>
           </PanelGroup>
         </div>
