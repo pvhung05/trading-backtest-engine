@@ -45,7 +45,11 @@ public class BacktestRunController {
     private final BacktestRunResponseMapper responseMapper;
 
     private Long getUserId(UserPrincipal principal) {
-        return (principal != null && principal.getId() != null) ? principal.getId() : 1L;
+        if (principal == null || principal.getId() == null) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "User is not authenticated");
+        }
+        return principal.getId();
     }
 
     /**

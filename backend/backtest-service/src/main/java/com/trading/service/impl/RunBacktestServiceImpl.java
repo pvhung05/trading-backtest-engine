@@ -30,6 +30,7 @@ import com.trading.model.PortfolioConfig;
 import com.trading.model.PortfolioResult;
 import com.trading.service.PortfolioService;
 import com.trading.strategy.factory.TradingStrategyFactory;
+import com.trading.strategy.model.DynamicStrategyParameters;
 import com.trading.strategy.model.MacdParameters;
 import com.trading.strategy.model.RsiParameters;
 import com.trading.strategy.model.SmaCrossParameters;
@@ -210,7 +211,27 @@ public class RunBacktestServiceImpl implements RunBacktestService, RunBacktestAp
                     getInt(params, "shortPeriod"),
                     getInt(params, "longPeriod"),
                     getInt(params, "signalPeriod"));
+            case DYNAMIC_DSL -> toDynamicStrategyParameters(params);
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private DynamicStrategyParameters toDynamicStrategyParameters(Map<String, Object> params) {
+        Map<String, Object> entryRule = (Map<String, Object>) params.get("entryRule");
+        Map<String, Object> exitRule = (Map<String, Object>) params.get("exitRule");
+        Integer warmupBars = null;
+        if (params.get("warmupBars") instanceof Number num) {
+            warmupBars = num.intValue();
+        }
+        String entrySignal = (String) params.get("entrySignalName");
+        String exitSignal = (String) params.get("exitSignalName");
+        return DynamicStrategyParameters.builder()
+                .entryRule(entryRule)
+                .exitRule(exitRule)
+                .warmupBars(warmupBars)
+                .entrySignalName(entrySignal)
+                .exitSignalName(exitSignal)
+                .build();
     }
 
     private int getInt(Map<String, Object> params, String key) {

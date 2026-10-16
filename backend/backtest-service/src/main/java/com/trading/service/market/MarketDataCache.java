@@ -20,7 +20,7 @@ public class MarketDataCache {
 
     private static final Logger logger = LoggerFactory.getLogger(MarketDataCache.class);
 
-    private final Map<String, BarSeries> cache = new HashMap<>();
+    private final Map<String, BarSeries> cache = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Retrieves a cached BarSeries by key.

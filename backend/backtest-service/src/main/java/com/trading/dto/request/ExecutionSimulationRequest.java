@@ -86,6 +86,7 @@ public class ExecutionSimulationRequest {
                     requirePositive(shortPeriod, "shortPeriod"),
                     requirePositive(longPeriod, "longPeriod"),
                     requirePositive(signalPeriod, "signalPeriod"));
+            case DYNAMIC_DSL -> throw new IllegalArgumentException("DYNAMIC_DSL is not supported via this legacy endpoint. Use dynamic-run instead.");
         };
     }
 

@@ -20,15 +20,12 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/api/backtest/**").permitAll()
-                        .requestMatchers("/api/backtest-runs/**").permitAll()
-                        .requestMatchers("/api/execution/**").permitAll()
-                        .requestMatchers("/api/market/**").permitAll()
-                        .requestMatchers("/api/metrics/**").permitAll()
-                        .requestMatchers("/api/portfolio/**").permitAll()
+                        .requestMatchers("/api/internal/**").permitAll()
+                        .requestMatchers("/api/backtest-runs/**").authenticated()
+                        .requestMatchers("/api/backtest/**", "/api/execution/**", "/api/market/**", "/api/metrics/**", "/api/portfolio/**").permitAll()
                         .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/error").permitAll()
-                        .anyRequest().permitAll())
+                        .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
